@@ -17,4 +17,6 @@ Abre `index.html` directamente en el navegador.
 
 ## Publicación en GitHub Pages
 
-Cuando el repositorio esté en GitHub, activa Pages usando la rama principal y la raíz del proyecto como fuente.
+La app está publicada en:
+
+https://vicentebaena.github.io/SEC_3GITT/
