@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SEC 3GITT | Laboratorio CORDIC</title>
+    <link rel="stylesheet" href="app/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-label="Laboratorio interactivo CORDIC">
+        <header class="topbar">
+          <div>
+            <p class="course">Sistemas Electrónicos para Comunicaciones</p>
+            <h1>CORDIC interactivo</h1>
+          </div>
+          <nav class="mode-tabs" aria-label="Modo de funcionamiento">
+            <button class="tab active" type="button" data-mode="rotation">Rotación</button>
+            <button class="tab" type="button" data-mode="vectoring">Vectorización</button>
+          </nav>
+        </header>
+
+        <section class="hero-grid">
+          <aside class="control-panel" aria-label="Controles de configuración">
+            <div class="panel-title">
+              <h2>Parámetros</h2>
+              <span id="runStatus">Modelo actualizado</span>
+            </div>
+
+            <div class="control-stack">
+              <label class="control" data-help="mode">
+                <span>Modo CORDIC</span>
+                <select id="modeSelect">
+                  <option value="rotation">Rotación: gira un vector</option>
+                  <option value="vectoring">Vectorización: mide módulo y fase</option>
+                </select>
+              </label>
+
+              <label class="control" data-help="iterations">
+                <span>Iteraciones</span>
+                <input id="iterations" type="range" min="4" max="20" value="12" />
+                <output id="iterationsOut">12</output>
+              </label>
+
+              <label class="control" data-help="wordLength">
+                <span>Ancho de palabra</span>
+                <input id="wordLength" type="range" min="8" max="24" value="16" />
+                <output id="wordLengthOut">16 bits</output>
+              </label>
+
+              <label class="control" data-help="fractionalBits">
+                <span>Bits fraccionales</span>
+                <input id="fractionalBits" type="range" min="4" max="20" value="13" />
+                <output id="fractionalBitsOut">13</output>
+              </label>
+
+              <label class="control" data-help="lutWidth">
+                <span>Ancho LUT atan</span>
+                <input id="lutWidth" type="range" min="8" max="28" value="18" />
+                <output id="lutWidthOut">18 bits</output>
+              </label>
+
+              <label class="control" data-help="angle">
+                <span>Ángulo objetivo</span>
+                <input id="angle" type="range" min="-89" max="89" value="38" />
+                <output id="angleOut">38°</output>
+              </label>
+
+              <div class="xy-grid">
+                <label class="control compact" data-help="inputX">
+                  <span>X inicial</span>
+                  <input id="inputX" type="number" min="-1.75" max="1.75" step="0.05" value="0.85" />
+                </label>
+                <label class="control compact" data-help="inputY">
+                  <span>Y inicial</span>
+                  <input id="inputY" type="number" min="-1.75" max="1.75" step="0.05" value="0.25" />
+                </label>
+              </div>
+            </div>
+
+            <article class="help-box" aria-live="polite">
+              <p class="help-kicker">Ayuda contextual</p>
+              <h3 id="helpTitle">Pasa por un control</h3>
+              <p id="helpText">Cada parámetro explica qué parte del circuito modifica y qué consecuencia tiene sobre precisión, coste hardware y convergencia.</p>
+            </article>
+          </aside>
+
+          <section class="visual-stage" aria-label="Visualización de vectores">
+            <div class="stage-header">
+              <div>
+                <h2 id="stageTitle">Rotación paso a paso</h2>
+                <p id="stageSubtitle">El vector se aproxima al ángulo indicado usando solo sumas, restas y desplazamientos.</p>
+              </div>
+              <button id="playPause" class="icon-button" type="button" aria-label="Reproducir animación">▶</button>
+            </div>
+            <canvas id="cordicCanvas" width="900" height="620"></canvas>
+            <div class="inline-datapath">
+              <div class="section-title">
+                <h2>CORDIC iterativo</h2>
+                <span>Buses en punto fijo</span>
+              </div>
+              <div id="busDiagram" class="bus-diagram" aria-label="Datapath iterativo con valores de buses"></div>
+            </div>
+            <div class="metric-strip">
+              <div><span>Iteración</span><strong id="metricIteration">0 / 12</strong></div>
+              <div><span>Error angular</span><strong id="metricAngleError">0°</strong></div>
+              <div><span>Error vectorial</span><strong id="metricVectorError">0</strong></div>
+              <div><span>Ganancia K</span><strong id="metricGain">1.0000</strong></div>
+            </div>
+          </section>
+        </section>
+
+        <section class="analysis-grid">
+          <article class="analysis-panel chart-panel">
+            <div class="section-title">
+              <h2>Error vs iteraciones</h2>
+              <span id="errorCaption">Escala logarítmica normalizada</span>
+            </div>
+            <canvas id="errorCanvas" width="760" height="330"></canvas>
+          </article>
+
+          <article class="analysis-panel">
+            <div class="section-title">
+              <h2>Registro interno</h2>
+              <span>x, y, z y dirección</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>i</th>
+                    <th>dᵢ</th>
+                    <th>x</th>
+                    <th>y</th>
+                    <th>z</th>
+                    <th>error</th>
+                  </tr>
+                </thead>
+                <tbody id="iterationTable"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="code-panel">
+          <div class="section-title">
+            <h2>VHDL parametrizable</h2>
+            <span id="vhdlCaption">Fragmento didáctico ajustado a la configuración</span>
+          </div>
+          <pre><code id="vhdlCode"></code></pre>
+        </section>
+      </section>
+    </main>
+    <script src="app/main.js"></script>
+  </body>
+</html>
