@@ -277,7 +277,10 @@ function drawReferenceCircle(ctx, center, radius) {
   ctx.setLineDash([]);
   ctx.fillStyle = "rgba(238, 248, 246, 0.72)";
   ctx.font = "800 16px Inter, sans-serif";
-  ctx.fillText("circunferencia de módulo", center.x + radius + 12, center.y - 8);
+  const labelX = Math.min(center.x + radius + 12, ctx.canvas.clientWidth - 142);
+  const labelY = Math.max(36, center.y - 16);
+  ctx.fillText("circunferencia", labelX, labelY);
+  ctx.fillText("de módulo", labelX, labelY + 18);
   ctx.restore();
 }
 
