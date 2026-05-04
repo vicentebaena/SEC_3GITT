@@ -331,10 +331,11 @@ function drawVectorScene() {
   }
 
   const angle = state.mode === "rotation" ? state.targetRad - row.z : row.z;
+  const vectorRadius = Math.hypot(state.x0, state.y0) * units;
   vectorCtx.strokeStyle = "rgba(255, 200, 87, 0.88)";
   vectorCtx.lineWidth = 4;
   vectorCtx.beginPath();
-  vectorCtx.arc(center.x, center.y, units * 0.62, 0, -angle, angle < 0);
+  vectorCtx.arc(center.x, center.y, Math.max(24, vectorRadius), 0, -angle, angle < 0);
   vectorCtx.stroke();
 
   vectorCtx.fillStyle = "rgba(238, 248, 246, 0.86)";
