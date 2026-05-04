@@ -226,7 +226,9 @@ h2 {
 }
 
 .help-box {
-  height: 230px;
+  align-self: stretch;
+  min-height: 0;
+  height: auto;
   overflow: auto;
   padding: 16px;
   border: 1px solid rgba(200, 245, 96, 0.32);
@@ -257,7 +259,7 @@ h2 {
 
 .visual-stage {
   display: grid;
-  grid-template-rows: auto minmax(360px, 430px) auto auto;
+  grid-template-rows: auto minmax(330px, 410px) auto auto;
   min-height: 650px;
   overflow: hidden;
 }
@@ -286,6 +288,21 @@ h2 {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.stage-body {
+  display: grid;
+  grid-template-columns: minmax(0, 0.68fr) minmax(250px, 0.32fr);
+  gap: 12px;
+  min-height: 330px;
+  padding: 12px 18px 0;
+}
+
+.stage-body #cordicCanvas {
+  min-width: 0;
+  min-height: 330px;
+  border: 1px solid rgba(199, 231, 226, 0.12);
+  border-radius: 8px;
 }
 
 .metric-strip {
@@ -507,8 +524,12 @@ code {
   }
 
   .visual-stage {
-    grid-template-rows: auto minmax(340px, 420px) auto auto;
+    grid-template-rows: auto minmax(340px, auto) auto auto;
     min-height: 740px;
+  }
+
+  .stage-body {
+    grid-template-columns: minmax(0, 0.7fr) minmax(240px, 0.3fr);
   }
 
   .bus-diagram {
@@ -538,6 +559,18 @@ code {
   .xy-grid,
   .bus-diagram {
     grid-template-columns: 1fr;
+  }
+
+  .stage-body {
+    grid-template-columns: 1fr;
+  }
+
+  .stage-body #cordicCanvas {
+    min-height: 320px;
+  }
+
+  .stage-body .help-box {
+    min-height: 190px;
   }
 
   .mode-tabs,

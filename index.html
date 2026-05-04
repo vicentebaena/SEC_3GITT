@@ -78,11 +78,6 @@
               </div>
             </div>
 
-            <article class="help-box" aria-live="polite">
-              <p class="help-kicker">Ayuda contextual</p>
-              <h3 id="helpTitle">Pasa por un control</h3>
-              <p id="helpText">Cada parámetro explica qué parte del circuito modifica y qué consecuencia tiene sobre precisión, coste hardware y convergencia.</p>
-            </article>
           </aside>
 
           <section class="visual-stage" aria-label="Visualización de vectores">
@@ -93,7 +88,14 @@
               </div>
               <button id="playPause" class="icon-button" type="button" aria-label="Reproducir animación">▶</button>
             </div>
-            <canvas id="cordicCanvas" width="900" height="620"></canvas>
+            <div class="stage-body">
+              <canvas id="cordicCanvas" width="900" height="620"></canvas>
+              <article class="help-box" aria-live="polite">
+                <p class="help-kicker">Ayuda contextual</p>
+                <h3 id="helpTitle">Pasa por un control</h3>
+                <p id="helpText">Cada parámetro explica qué parte del circuito modifica y qué consecuencia tiene sobre precisión, coste hardware y convergencia.</p>
+              </article>
+            </div>
             <div class="inline-datapath">
               <div class="section-title">
                 <h2>CORDIC iterativo</h2>
