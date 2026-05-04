@@ -311,7 +311,7 @@ function drawVectorScene() {
   const { width, height } = resizeCanvas(vectorCanvas);
   const center = { x: width * 0.5, y: height * 0.56 };
   const maxMagnitude = Math.max(
-    0.7,
+    1,
     Math.hypot(state.x0, state.y0),
     Math.hypot(state.idealRotated.x, state.idealRotated.y),
     ...state.rows.map((item) => Math.hypot(item.x, item.y)),
@@ -319,11 +319,7 @@ function drawVectorScene() {
   const units = (Math.min(width, height) * 0.42) / maxMagnitude;
   const row = frames[activeStep] || frames[0];
   drawGrid(vectorCtx, width, height, center, units / 2);
-  const referenceRadius =
-    state.mode === "rotation"
-      ? Math.hypot(state.idealRotated.x, state.idealRotated.y) * units
-      : Math.hypot(state.x0, state.y0) * units;
-  drawReferenceCircle(vectorCtx, center, Math.max(30, referenceRadius));
+  drawReferenceCircle(vectorCtx, center, units);
 
   drawVector(vectorCtx, center, units, state.x0, state.y0, "#7cb7ff", "entrada", 3);
   if (state.mode === "rotation") {
