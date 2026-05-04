@@ -280,7 +280,7 @@ function drawReferenceCircle(ctx, center, radius) {
   const labelX = Math.min(center.x + radius + 12, ctx.canvas.clientWidth - 142);
   const labelY = Math.max(36, center.y - 16);
   ctx.fillText("circunferencia", labelX, labelY);
-  ctx.fillText("de módulo", labelX, labelY + 18);
+  ctx.fillText("de módulo 1", labelX, labelY + 18);
   ctx.restore();
 }
 
