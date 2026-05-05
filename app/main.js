@@ -789,7 +789,10 @@ function drawOfdmConstellation() {
   const plotSize = Math.min(w, h);
   const origin = { x: pad.left + w / 2, y: pad.top + h / 2 };
   const scale = plotSize * 0.36;
-  const noiseSigma = Math.sqrt(1 / (2 * 10 ** (ofdmState.snrDb / 10)));
+  const snrLinear = 10 ** (ofdmState.snrDb / 10);
+  const noisePower = 1 / snrLinear;
+  const noiseSigma = Math.sqrt(noisePower / 2);
+  const noiseRmsRadius = Math.sqrt(noisePower);
   ofdmCtx.clearRect(0, 0, width, height);
   ofdmCtx.fillStyle = "#071013";
   ofdmCtx.fillRect(0, 0, width, height);
@@ -813,10 +816,24 @@ function drawOfdmConstellation() {
     ofdmCtx.fill();
   });
 
+  const idealPoints = idealConstellationPoints(ofdmState.constellation);
+  const upperRightPoint = idealPoints.reduce((best, point) => {
+    if (point.re > best.re) return point;
+    if (point.re === best.re && point.im > best.im) return point;
+    return best;
+  }, idealPoints[0]);
+  ofdmCtx.strokeStyle = "rgba(200, 245, 96, 0.72)";
+  ofdmCtx.lineWidth = 2;
+  ofdmCtx.setLineDash([8, 6]);
+  ofdmCtx.beginPath();
+  ofdmCtx.arc(xFor(upperRightPoint.re), yFor(upperRightPoint.im), noiseRmsRadius * scale, 0, Math.PI * 2);
+  ofdmCtx.stroke();
+  ofdmCtx.setLineDash([]);
+
   ofdmCtx.strokeStyle = "#ffc857";
   ofdmCtx.fillStyle = "#ffc857";
   ofdmCtx.lineWidth = 2;
-  idealConstellationPoints(ofdmState.constellation).forEach((point) => {
+  idealPoints.forEach((point) => {
     const x = xFor(point.re);
     const y = yFor(point.im);
     ofdmCtx.beginPath();
@@ -833,6 +850,8 @@ function drawOfdmConstellation() {
   ofdmCtx.fillStyle = "rgba(238, 248, 246, 0.86)";
   ofdmCtx.font = "900 16px Inter, sans-serif";
   ofdmCtx.fillText(`SNR = ${ofdmState.snrDb} dB`, pad.left, pad.top + 4);
+  ofdmCtx.fillStyle = "#c8f560";
+  ofdmCtx.fillText(`noise RMS radius = ${noiseRmsRadius.toFixed(3)}`, pad.left, pad.top + 26);
   ofdmCtx.fillStyle = "#ffc857";
   ofdmCtx.fillText("ideal", width - pad.right - 120, pad.top + 4);
   ofdmCtx.fillStyle = "#48d6c8";
