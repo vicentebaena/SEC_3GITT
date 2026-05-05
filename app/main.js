@@ -148,7 +148,7 @@ const ofdmHelp = {
   },
   snr: {
     title: "SNR",
-    text: "Signal-to-noise ratio in dB used in the received-constellation view. Low SNR opens the point cloud; high SNR makes received points cluster near the ideal constellation.",
+    text: "Signal-to-noise ratio in dB used in the received-constellation view. Low SNR opens the point cloud; high SNR makes received points cluster near the ideal constellation. The yellow circle is drawn around the upper-right ideal point with radius sqrt(noise power), so it shrinks as SNR increases.",
   },
   hermitian: {
     title: "Hermitian symmetry",
