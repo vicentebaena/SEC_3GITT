@@ -340,7 +340,7 @@ function simulateOfdm() {
   const bins = occupiedBins(nfft, occupied, hermitian);
   const spectrum = Array.from({ length: nfft }, () => ({ re: 0, im: 0 }));
   const dataSymbols = [];
-  const constellationSampleCount = 1000;
+  const constellationSampleCount = constellation === "16qam" ? 2000 : 1000;
   const constellationSamples = Array.from({ length: constellationSampleCount }, (_, index) =>
     constellationPoint(index + 4096, constellation),
   );
