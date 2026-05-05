@@ -9,6 +9,14 @@ const controls = {
   inputY: document.querySelector("#inputY"),
 };
 
+const ofdmControls = {
+  nfft: document.querySelector("#ofdmNfft"),
+  occupied: document.querySelector("#ofdmOccupied"),
+  sampleRate: document.querySelector("#ofdmSampleRate"),
+  cp: document.querySelector("#ofdmCp"),
+  constellation: document.querySelector("#ofdmConstellation"),
+};
+
 const outputs = {
   iterations: document.querySelector("#iterationsOut"),
   wordLength: document.querySelector("#wordLengthOut"),
@@ -30,11 +38,34 @@ const outputs = {
   playPause: document.querySelector("#playPause"),
 };
 
-const tabs = [...document.querySelectorAll(".tab")];
+const ofdmOutputs = {
+  occupied: document.querySelector("#ofdmOccupiedOut"),
+  sampleRate: document.querySelector("#ofdmSampleRateOut"),
+  cp: document.querySelector("#ofdmCpOut"),
+  deltaF: document.querySelector("#ofdmDeltaF"),
+  usefulTime: document.querySelector("#ofdmUsefulTime"),
+  symbolTime: document.querySelector("#ofdmSymbolTime"),
+  bitrate: document.querySelector("#ofdmBitrate"),
+  helpTitle: document.querySelector("#ofdmHelpTitle"),
+  helpText: document.querySelector("#ofdmHelpText"),
+  runStatus: document.querySelector("#ofdmRunStatus"),
+  stageTitle: document.querySelector("#ofdmStageTitle"),
+  stageSubtitle: document.querySelector("#ofdmStageSubtitle"),
+  viewToggle: document.querySelector("#ofdmViewToggle"),
+};
+
+const labTabs = [...document.querySelectorAll(".lab-tab")];
+const labViews = {
+  cordic: document.querySelector("#cordicLab"),
+  ofdm: document.querySelector("#ofdmLab"),
+};
+const tabs = [...document.querySelectorAll(".cordic-tab")];
 const vectorCanvas = document.querySelector("#cordicCanvas");
 const errorCanvas = document.querySelector("#errorCanvas");
+const ofdmCanvas = document.querySelector("#ofdmCanvas");
 const vectorCtx = vectorCanvas.getContext("2d");
 const errorCtx = errorCanvas.getContext("2d");
+const ofdmCtx = ofdmCanvas.getContext("2d");
 
 const help = {
   mode: {
@@ -91,12 +122,42 @@ const help = {
   },
 };
 
+const ofdmHelp = {
+  nfft: {
+    title: "Tamaño de la IFFT/FFT",
+    text: "NFFT fija el número de muestras del símbolo OFDM útil y el número total de posiciones de frecuencia disponibles. La separación entre subportadoras es Δf = Fs/NFFT.",
+  },
+  occupied: {
+    title: "Portadoras ocupadas",
+    text: "Solo estas subportadoras transportan datos. Deben ser menos que NFFT para dejar margen a portadoras nulas, guardas o DC si se desea. Al aumentar este número sube la tasa, pero también se ocupa más ancho de banda.",
+  },
+  sampleRate: {
+    title: "Frecuencia de muestreo",
+    text: "Fs define la escala temporal y frecuencial. Con NFFT fijo, aumentar Fs aumenta Δf y reduce la duración del símbolo útil.",
+  },
+  cp: {
+    title: "Prefijo cíclico",
+    text: "El prefijo cíclico copia las últimas muestras del símbolo útil y las antepone. Ayuda frente a multitrayecto, pero reduce la tasa útil porque añade muestras sin nuevos bits.",
+  },
+  constellation: {
+    title: "Constelación",
+    text: "La constelación fija cuántos bits transporta cada portadora ocupada: BPSK usa 1 bit, QPSK 2 bits y 16QAM 4 bits por símbolo de subportadora.",
+  },
+  graph: {
+    title: "Vista frecuencia/tiempo",
+    text: "En frecuencia se muestran las sinc de las portadoras ocupadas y la separación Δf. En tiempo se representa un símbolo OFDM complejo y se marca la zona copiada como prefijo cíclico.",
+  },
+};
+
 let state = {};
 let frames = [];
 let activeStep = 0;
 let playing = false;
 let lastFrame = 0;
 let audioContext = null;
+let activeLab = "cordic";
+let ofdmState = {};
+let ofdmView = "frequency";
 const animationIntervalMs = 1450;
 
 function q(value, fractionalBits, wordLength) {
@@ -159,6 +220,101 @@ function gain(iterations) {
     k *= 1 / Math.sqrt(1 + 2 ** (-2 * i));
   }
   return k;
+}
+
+function formatFrequency(value) {
+  if (value >= 1e6) return `${(value / 1e6).toFixed(3)} MHz`;
+  if (value >= 1e3) return `${(value / 1e3).toFixed(3)} kHz`;
+  return `${value.toFixed(1)} Hz`;
+}
+
+function formatTime(seconds) {
+  if (seconds >= 1e-3) return `${(seconds * 1e3).toFixed(3)} ms`;
+  if (seconds >= 1e-6) return `${(seconds * 1e6).toFixed(3)} µs`;
+  return `${(seconds * 1e9).toFixed(3)} ns`;
+}
+
+function formatBitrate(value) {
+  if (value >= 1e6) return `${(value / 1e6).toFixed(3)} Mb/s`;
+  if (value >= 1e3) return `${(value / 1e3).toFixed(3)} kb/s`;
+  return `${value.toFixed(1)} b/s`;
+}
+
+function bitsPerSymbol(constellation) {
+  return { bpsk: 1, qpsk: 2, "16qam": 4 }[constellation] || 1;
+}
+
+function constellationPoint(index, constellation) {
+  if (constellation === "bpsk") return { re: index % 2 === 0 ? 1 : -1, im: 0 };
+  if (constellation === "qpsk") {
+    const points = [
+      { re: 1, im: 1 },
+      { re: -1, im: 1 },
+      { re: -1, im: -1 },
+      { re: 1, im: -1 },
+    ];
+    const point = points[index % points.length];
+    return { re: point.re / Math.SQRT2, im: point.im / Math.SQRT2 };
+  }
+  const levels = [-3, -1, 3, 1];
+  return { re: levels[index % 4] / Math.sqrt(10), im: levels[Math.floor(index / 4) % 4] / Math.sqrt(10) };
+}
+
+function sinc(x) {
+  if (Math.abs(x) < 1e-6) return 1;
+  return Math.sin(Math.PI * x) / (Math.PI * x);
+}
+
+function occupiedBins(nfft, occupied) {
+  const bins = [];
+  const half = occupied / 2;
+  if (occupied % 2 === 0) {
+    for (let k = -half; k < 0; k += 1) bins.push(k);
+    for (let k = 1; k <= half; k += 1) bins.push(k);
+  } else {
+    for (let k = -Math.floor(half); k <= Math.floor(half); k += 1) bins.push(k);
+  }
+  return bins.slice(0, occupied);
+}
+
+function simulateOfdm() {
+  const nfft = Number(ofdmControls.nfft.value);
+  const maxOccupied = nfft - 2;
+  ofdmControls.occupied.max = maxOccupied;
+  let occupied = Math.min(Number(ofdmControls.occupied.value), maxOccupied);
+  if (occupied % 2 !== 0) occupied -= 1;
+  occupied = Math.max(2, occupied);
+  ofdmControls.occupied.value = occupied;
+  ofdmControls.cp.max = Math.floor(nfft / 2);
+  const cp = Math.min(Number(ofdmControls.cp.value), Math.floor(nfft / 2));
+  ofdmControls.cp.value = cp;
+  const sampleRate = Math.max(1, Number(ofdmControls.sampleRate.value));
+  const constellation = ofdmControls.constellation.value;
+  const bins = occupiedBins(nfft, occupied);
+  const spectrum = Array.from({ length: nfft }, () => ({ re: 0, im: 0 }));
+  bins.forEach((bin, index) => {
+    const arrayIndex = (bin + nfft) % nfft;
+    spectrum[arrayIndex] = constellationPoint(index, constellation);
+  });
+  const useful = [];
+  for (let n = 0; n < nfft; n += 1) {
+    let re = 0;
+    let im = 0;
+    spectrum.forEach((symbol, k) => {
+      const angle = (2 * Math.PI * k * n) / nfft;
+      re += symbol.re * Math.cos(angle) - symbol.im * Math.sin(angle);
+      im += symbol.re * Math.sin(angle) + symbol.im * Math.cos(angle);
+    });
+    useful.push({ re: re / nfft, im: im / nfft });
+  }
+  const prefix = useful.slice(nfft - cp);
+  const waveform = [...prefix, ...useful];
+  const deltaF = sampleRate / nfft;
+  const usefulTime = nfft / sampleRate;
+  const symbolTime = (nfft + cp) / sampleRate;
+  const bitrate = (occupied * bitsPerSymbol(constellation)) / symbolTime;
+  ofdmState = { nfft, occupied, sampleRate, cp, constellation, bins, useful, waveform, deltaF, usefulTime, symbolTime, bitrate };
+  renderOfdm();
 }
 
 function simulate() {
@@ -395,6 +551,150 @@ function drawErrorChart() {
   errorCtx.fillText("iteración", width - 96, height - 12);
 }
 
+function drawOfdmAxes(ctx, width, height, pad, xLabel, yLabel) {
+  ctx.strokeStyle = "rgba(238, 248, 246, 0.34)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, height - pad.bottom);
+  ctx.lineTo(width - pad.right, height - pad.bottom);
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, height - pad.bottom);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(238, 248, 246, 0.82)";
+  ctx.font = "800 14px Inter, sans-serif";
+  ctx.fillText(yLabel, 18, pad.top + 6);
+  ctx.fillText(xLabel, width - pad.right - 96, height - 14);
+}
+
+function drawOfdmFrequency() {
+  const { width, height } = resizeCanvas(ofdmCanvas);
+  const pad = { left: 58, right: 28, top: 34, bottom: 54 };
+  const w = width - pad.left - pad.right;
+  const h = height - pad.top - pad.bottom;
+  const { bins, occupied, deltaF } = ofdmState;
+  const minBin = Math.min(...bins) - 2;
+  const maxBin = Math.max(...bins) + 2;
+  const span = maxBin - minBin;
+  ofdmCtx.clearRect(0, 0, width, height);
+  ofdmCtx.fillStyle = "#071013";
+  ofdmCtx.fillRect(0, 0, width, height);
+  drawOfdmAxes(ofdmCtx, width, height, pad, "frecuencia", "|S(f)|");
+
+  const xFor = (bin) => pad.left + ((bin - minBin) / span) * w;
+  const yFor = (amp) => pad.top + h - amp * h * 0.82;
+  ofdmCtx.strokeStyle = "rgba(199, 231, 226, 0.13)";
+  ofdmCtx.lineWidth = 1;
+  for (let k = Math.ceil(minBin); k <= Math.floor(maxBin); k += 1) {
+    const x = xFor(k);
+    ofdmCtx.beginPath();
+    ofdmCtx.moveTo(x, pad.top);
+    ofdmCtx.lineTo(x, height - pad.bottom);
+    ofdmCtx.stroke();
+  }
+
+  bins.forEach((bin, index) => {
+    const hue = 175 + ((index % 7) - 3) * 13;
+    ofdmCtx.strokeStyle = `hsla(${hue}, 78%, 62%, 0.42)`;
+    ofdmCtx.lineWidth = 2;
+    ofdmCtx.beginPath();
+    for (let p = 0; p <= 420; p += 1) {
+      const f = minBin + (span * p) / 420;
+      const amp = Math.abs(sinc(f - bin));
+      const x = xFor(f);
+      const y = yFor(amp);
+      if (p === 0) ofdmCtx.moveTo(x, y);
+      else ofdmCtx.lineTo(x, y);
+    }
+    ofdmCtx.stroke();
+  });
+
+  ofdmCtx.strokeStyle = "rgba(255, 200, 87, 0.95)";
+  ofdmCtx.lineWidth = 4;
+  bins.forEach((bin) => {
+    const x = xFor(bin);
+    ofdmCtx.beginPath();
+    ofdmCtx.moveTo(x, height - pad.bottom + 8);
+    ofdmCtx.lineTo(x, height - pad.bottom - 22);
+    ofdmCtx.stroke();
+  });
+
+  const centerA = xFor(-0.5);
+  const centerB = xFor(0.5);
+  ofdmCtx.strokeStyle = "#ffc857";
+  ofdmCtx.lineWidth = 2;
+  ofdmCtx.beginPath();
+  ofdmCtx.moveTo(centerA, pad.top + 22);
+  ofdmCtx.lineTo(centerB, pad.top + 22);
+  ofdmCtx.stroke();
+  ofdmCtx.fillStyle = "#ffc857";
+  ofdmCtx.font = "900 16px Inter, sans-serif";
+  ofdmCtx.fillText(`Δf = ${formatFrequency(deltaF)}`, Math.min(centerA + 8, width - 170), pad.top + 16);
+  ofdmCtx.fillStyle = "rgba(167, 187, 183, 0.95)";
+  ofdmCtx.font = "700 14px Inter, sans-serif";
+  ofdmCtx.fillText(`${occupied} portadoras ocupadas centradas en DC`, pad.left, height - 18);
+}
+
+function drawOfdmTime() {
+  const { width, height } = resizeCanvas(ofdmCanvas);
+  const pad = { left: 58, right: 28, top: 34, bottom: 54 };
+  const w = width - pad.left - pad.right;
+  const h = height - pad.top - pad.bottom;
+  const { waveform, cp, nfft } = ofdmState;
+  const maxAmp = Math.max(1e-6, ...waveform.map((sample) => Math.max(Math.abs(sample.re), Math.abs(sample.im))));
+  const mid = pad.top + h / 2;
+  const xFor = (idx) => pad.left + (idx / Math.max(1, waveform.length - 1)) * w;
+  const yFor = (value) => mid - (value / maxAmp) * h * 0.38;
+  ofdmCtx.clearRect(0, 0, width, height);
+  ofdmCtx.fillStyle = "#071013";
+  ofdmCtx.fillRect(0, 0, width, height);
+  drawOfdmAxes(ofdmCtx, width, height, pad, "muestras", "I/Q");
+  if (cp > 0) {
+    ofdmCtx.fillStyle = "rgba(255, 200, 87, 0.14)";
+    ofdmCtx.fillRect(pad.left, pad.top, xFor(cp) - pad.left, h);
+    ofdmCtx.fillStyle = "#ffc857";
+    ofdmCtx.font = "900 15px Inter, sans-serif";
+    ofdmCtx.fillText(`prefijo cíclico (${cp} muestras)`, pad.left + 10, pad.top + 24);
+  }
+  ofdmCtx.strokeStyle = "rgba(238, 248, 246, 0.2)";
+  ofdmCtx.beginPath();
+  ofdmCtx.moveTo(pad.left, mid);
+  ofdmCtx.lineTo(width - pad.right, mid);
+  ofdmCtx.stroke();
+
+  [
+    { key: "re", color: "#48d6c8", label: "parte real" },
+    { key: "im", color: "#ff6b5f", label: "parte imaginaria" },
+  ].forEach((series) => {
+    ofdmCtx.strokeStyle = series.color;
+    ofdmCtx.lineWidth = 3;
+    ofdmCtx.beginPath();
+    waveform.forEach((sample, idx) => {
+      const x = xFor(idx);
+      const y = yFor(sample[series.key]);
+      if (idx === 0) ofdmCtx.moveTo(x, y);
+      else ofdmCtx.lineTo(x, y);
+    });
+    ofdmCtx.stroke();
+  });
+  const usefulStart = xFor(cp);
+  ofdmCtx.strokeStyle = "rgba(200, 245, 96, 0.85)";
+  ofdmCtx.lineWidth = 2;
+  ofdmCtx.setLineDash([6, 6]);
+  ofdmCtx.beginPath();
+  ofdmCtx.moveTo(usefulStart, pad.top);
+  ofdmCtx.lineTo(usefulStart, height - pad.bottom);
+  ofdmCtx.stroke();
+  ofdmCtx.setLineDash([]);
+  ofdmCtx.fillStyle = "#48d6c8";
+  ofdmCtx.font = "900 15px Inter, sans-serif";
+  ofdmCtx.fillText("real", width - pad.right - 132, pad.top + 22);
+  ofdmCtx.fillStyle = "#ff6b5f";
+  ofdmCtx.fillText("imaginaria", width - pad.right - 84, pad.top + 22);
+  ofdmCtx.fillStyle = "rgba(167, 187, 183, 0.95)";
+  ofdmCtx.font = "700 14px Inter, sans-serif";
+  ofdmCtx.fillText(`${nfft} muestras útiles + ${cp} de prefijo`, pad.left, height - 18);
+}
+
 function renderTable() {
   outputs.iterationTable.innerHTML = state.rows
     .map(
@@ -603,6 +903,28 @@ function renderLabels() {
   tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.mode === state.mode));
 }
 
+function renderOfdm() {
+  ofdmOutputs.occupied.textContent = ofdmState.occupied;
+  ofdmOutputs.sampleRate.textContent = formatFrequency(ofdmState.sampleRate);
+  ofdmOutputs.cp.textContent = ofdmState.cp;
+  ofdmOutputs.deltaF.textContent = formatFrequency(ofdmState.deltaF);
+  ofdmOutputs.usefulTime.textContent = formatTime(ofdmState.usefulTime);
+  ofdmOutputs.symbolTime.textContent = formatTime(ofdmState.symbolTime);
+  ofdmOutputs.bitrate.textContent = formatBitrate(ofdmState.bitrate);
+  ofdmOutputs.runStatus.textContent = "Modelo actualizado";
+  ofdmOutputs.viewToggle.textContent = ofdmView === "frequency" ? "Ver tiempo" : "Ver frecuencia";
+  ofdmOutputs.stageTitle.textContent =
+    ofdmView === "frequency" ? "Espectro de subportadoras OFDM" : "Símbolo OFDM en tiempo";
+  ofdmOutputs.stageSubtitle.textContent =
+    ofdmView === "frequency"
+      ? "Las sinc de las portadoras ocupadas tienen ceros en los centros de las portadoras vecinas."
+      : "La parte inicial marcada copia el final del símbolo útil: es el prefijo cíclico.";
+  if (activeLab === "ofdm") {
+    if (ofdmView === "frequency") drawOfdmFrequency();
+    else drawOfdmTime();
+  }
+}
+
 function renderAll() {
   renderLabels();
   drawVectorScene();
@@ -623,6 +945,17 @@ function setMode(mode) {
   simulate();
 }
 
+function setLab(lab) {
+  activeLab = lab;
+  labTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.lab === lab));
+  Object.entries(labViews).forEach(([name, view]) => {
+    view.hidden = name !== lab;
+    view.classList.toggle("active", name === lab);
+  });
+  if (lab === "cordic") renderAll();
+  if (lab === "ofdm") renderOfdm();
+}
+
 Object.values(controls).forEach((control) => {
   control.addEventListener("input", () => {
     activeStep = 0;
@@ -634,6 +967,19 @@ tabs.forEach((tab) => {
   tab.addEventListener("click", () => setMode(tab.dataset.mode));
 });
 
+labTabs.forEach((tab) => {
+  tab.addEventListener("click", () => setLab(tab.dataset.lab));
+});
+
+Object.values(ofdmControls).forEach((control) => {
+  control.addEventListener("input", simulateOfdm);
+});
+
+ofdmOutputs.viewToggle.addEventListener("click", () => {
+  ofdmView = ofdmView === "frequency" ? "time" : "frequency";
+  renderOfdm();
+});
+
 function showHelp(helpKey) {
   const item = help[helpKey];
   if (!item) return;
@@ -641,14 +987,25 @@ function showHelp(helpKey) {
   outputs.helpText.textContent = item.text;
 }
 
+function showOfdmHelp(helpKey) {
+  const item = ofdmHelp[helpKey];
+  if (!item) return;
+  ofdmOutputs.helpTitle.textContent = item.title;
+  ofdmOutputs.helpText.textContent = item.text;
+}
+
 document.addEventListener("mouseover", (event) => {
   const node = event.target.closest("[data-help]");
   if (node) showHelp(node.dataset.help);
+  const ofdmNode = event.target.closest("[data-ofdm-help]");
+  if (ofdmNode) showOfdmHelp(ofdmNode.dataset.ofdmHelp);
 });
 
 document.addEventListener("focusin", (event) => {
   const node = event.target.closest("[data-help]");
   if (node) showHelp(node.dataset.help);
+  const ofdmNode = event.target.closest("[data-ofdm-help]");
+  if (ofdmNode) showOfdmHelp(ofdmNode.dataset.ofdmHelp);
 });
 
 outputs.playPause.addEventListener("click", () => {
@@ -667,6 +1024,13 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 
-window.addEventListener("resize", renderAll);
+ofdmCanvas.addEventListener("mousemove", () => showOfdmHelp("graph"));
+ofdmCanvas.addEventListener("focus", () => showOfdmHelp("graph"));
+
+window.addEventListener("resize", () => {
+  if (activeLab === "cordic") renderAll();
+  else renderOfdm();
+});
 simulate();
+simulateOfdm();
 requestAnimationFrame(tick);

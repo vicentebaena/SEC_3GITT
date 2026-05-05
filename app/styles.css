@@ -56,6 +56,10 @@ select {
   z-index: 1;
 }
 
+.lab-view[hidden] {
+  display: none;
+}
+
 .topbar {
   display: flex;
   align-items: end;
@@ -119,6 +123,21 @@ h2 {
   color: #061012;
   background: var(--cyan);
   box-shadow: 0 0 26px rgba(72, 214, 200, 0.36);
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.segmented-control .tab {
+  width: 100%;
+  min-width: 0;
 }
 
 .hero-grid {
@@ -273,7 +292,8 @@ h2 {
   color: var(--muted);
 }
 
-.icon-button {
+.icon-button,
+.view-toggle {
   width: 44px;
   height: 44px;
   border-color: var(--line);
@@ -283,7 +303,16 @@ h2 {
   font-weight: 900;
 }
 
+.view-toggle {
+  width: auto;
+  min-width: 116px;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 6px;
+}
+
 #cordicCanvas,
+#ofdmCanvas,
 #errorCanvas {
   display: block;
   width: 100%;
@@ -298,11 +327,16 @@ h2 {
   padding: 12px 18px 0;
 }
 
-.stage-body #cordicCanvas {
+.stage-body #cordicCanvas,
+.stage-body #ofdmCanvas {
   min-width: 0;
   min-height: 330px;
   border: 1px solid rgba(199, 231, 226, 0.12);
   border-radius: 8px;
+}
+
+.ofdm-stage {
+  grid-template-rows: auto minmax(330px, 430px) auto;
 }
 
 .metric-strip {

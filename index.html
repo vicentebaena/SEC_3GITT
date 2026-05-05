@@ -3,23 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SEC 3GITT | Laboratorio CORDIC</title>
+    <title>SEC 3GITT | Laboratorios de comunicaciones</title>
     <link rel="stylesheet" href="app/styles.css" />
   </head>
   <body>
     <main class="app-shell">
-      <section class="workspace" aria-label="Laboratorio interactivo CORDIC">
+      <section class="workspace" aria-label="Laboratorios interactivos de comunicaciones">
         <header class="topbar">
           <div>
             <p class="course">Sistemas Electrónicos para Comunicaciones</p>
-            <h1>CORDIC interactivo</h1>
+            <h1>Laboratorios interactivos</h1>
           </div>
-          <nav class="mode-tabs" aria-label="Modo de funcionamiento">
-            <button class="tab active" type="button" data-mode="rotation">Rotación</button>
-            <button class="tab" type="button" data-mode="vectoring">Vectorización</button>
+          <nav class="mode-tabs lab-tabs" aria-label="Laboratorio">
+            <button class="tab lab-tab active" type="button" data-lab="cordic">CORDIC</button>
+            <button class="tab lab-tab" type="button" data-lab="ofdm">OFDM</button>
           </nav>
         </header>
 
+        <div class="lab-view active" id="cordicLab">
         <section class="hero-grid">
           <aside class="control-panel" aria-label="Controles de configuración">
             <div class="panel-title">
@@ -28,6 +29,11 @@
             </div>
 
             <div class="control-stack">
+              <div class="segmented-control" aria-label="Modo CORDIC">
+                <button class="tab cordic-tab active" type="button" data-mode="rotation">Rotación</button>
+                <button class="tab cordic-tab" type="button" data-mode="vectoring">Vectorización</button>
+              </div>
+
               <label class="control" data-help="mode">
                 <span>Modo CORDIC</span>
                 <select id="modeSelect">
@@ -151,6 +157,81 @@
           </div>
           <pre><code id="vhdlCode"></code></pre>
         </section>
+        </div>
+
+        <div class="lab-view" id="ofdmLab" hidden>
+        <section class="hero-grid">
+          <aside class="control-panel" aria-label="Controles OFDM">
+            <div class="panel-title">
+              <h2>Parámetros OFDM</h2>
+              <span id="ofdmRunStatus">Modelo actualizado</span>
+            </div>
+
+            <div class="control-stack">
+              <label class="control" data-ofdm-help="nfft">
+                <span>NFFT</span>
+                <select id="ofdmNfft">
+                  <option value="32">32</option>
+                  <option value="64" selected>64</option>
+                  <option value="128">128</option>
+                  <option value="256">256</option>
+                </select>
+              </label>
+
+              <label class="control" data-ofdm-help="occupied">
+                <span>Portadoras ocupadas</span>
+                <input id="ofdmOccupied" type="range" min="4" max="62" step="2" value="24" />
+                <output id="ofdmOccupiedOut">24</output>
+              </label>
+
+              <label class="control" data-ofdm-help="sampleRate">
+                <span>Frecuencia de muestreo</span>
+                <input id="ofdmSampleRate" type="number" min="1000" step="1000" value="1000000" />
+                <output id="ofdmSampleRateOut">1.000 MHz</output>
+              </label>
+
+              <label class="control" data-ofdm-help="cp">
+                <span>Muestras de prefijo cíclico</span>
+                <input id="ofdmCp" type="range" min="0" max="32" step="1" value="16" />
+                <output id="ofdmCpOut">16</output>
+              </label>
+
+              <label class="control" data-ofdm-help="constellation">
+                <span>Constelación</span>
+                <select id="ofdmConstellation">
+                  <option value="bpsk">BPSK</option>
+                  <option value="qpsk" selected>QPSK</option>
+                  <option value="16qam">16QAM</option>
+                </select>
+              </label>
+            </div>
+          </aside>
+
+          <section class="visual-stage ofdm-stage" aria-label="Visualización OFDM">
+            <div class="stage-header">
+              <div>
+                <h2 id="ofdmStageTitle">Espectro de subportadoras OFDM</h2>
+                <p id="ofdmStageSubtitle">Cada portadora ocupada es ortogonal a las demás: sus ceros caen justo sobre los centros vecinos.</p>
+              </div>
+              <button id="ofdmViewToggle" class="view-toggle" type="button">Ver tiempo</button>
+            </div>
+            <div class="stage-body">
+              <canvas id="ofdmCanvas" width="900" height="620" tabindex="0" data-ofdm-help="graph"></canvas>
+              <article class="help-box" aria-live="polite">
+                <p class="help-kicker">Ayuda contextual</p>
+                <h3 id="ofdmHelpTitle">OFDM</h3>
+                <p id="ofdmHelpText">Pasa por un control o por la gráfica para ver cómo cambia la separación entre portadoras, el prefijo cíclico y la tasa útil.</p>
+              </article>
+            </div>
+            <div class="metric-strip">
+              <div><span>Δf</span><strong id="ofdmDeltaF">15.625 kHz</strong></div>
+              <div><span>T útil</span><strong id="ofdmUsefulTime">64.000 µs</strong></div>
+              <div><span>T símbolo</span><strong id="ofdmSymbolTime">80.000 µs</strong></div>
+              <div><span>Tasa bruta</span><strong id="ofdmBitrate">600.000 kb/s</strong></div>
+            </div>
+          </section>
+        </section>
+        </div>
       </section>
     </main>
     <script src="app/main.js"></script>
