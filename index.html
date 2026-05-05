@@ -42,6 +42,11 @@
                 </select>
               </label>
 
+              <label class="control toggle-control" data-help="architecture">
+                <span>Pipeline architecture</span>
+                <input id="cordicPipeline" type="checkbox" />
+              </label>
+
               <label class="control" data-help="iterations">
                 <span>Iterations</span>
                 <input id="iterations" type="range" min="4" max="20" value="12" />
@@ -239,10 +244,10 @@
               </article>
             </div>
             <div class="metric-strip">
-              <div><span>Δf</span><strong id="ofdmDeltaF">15.625 kHz</strong></div>
-              <div><span>Useful T</span><strong id="ofdmUsefulTime">64.000 µs</strong></div>
-              <div><span>Symbol T</span><strong id="ofdmSymbolTime">80.000 µs</strong></div>
-              <div><span>Raw rate</span><strong id="ofdmBitrate">625.000 kb/s</strong></div>
+              <div data-ofdm-help="deltaF" tabindex="0"><span>Δf</span><strong id="ofdmDeltaF">15.625 kHz</strong></div>
+              <div data-ofdm-help="usefulTime" tabindex="0"><span>Useful T</span><strong id="ofdmUsefulTime">64.000 µs</strong></div>
+              <div data-ofdm-help="symbolTime" tabindex="0"><span>Symbol T</span><strong id="ofdmSymbolTime">80.000 µs</strong></div>
+              <div data-ofdm-help="bitrate" tabindex="0"><span>Raw rate</span><strong id="ofdmBitrate">625.000 kb/s</strong></div>
             </div>
           </section>
         </section>

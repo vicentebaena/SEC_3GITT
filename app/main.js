@@ -1,5 +1,6 @@
 const controls = {
   modeSelect: document.querySelector("#modeSelect"),
+  pipeline: document.querySelector("#cordicPipeline"),
   iterations: document.querySelector("#iterations"),
   wordLength: document.querySelector("#wordLength"),
   fractionalBits: document.querySelector("#fractionalBits"),
@@ -63,6 +64,7 @@ const labViews = {
 };
 const tabs = [...document.querySelectorAll(".cordic-tab")];
 const ofdmViewTabs = [...document.querySelectorAll(".ofdm-view-tab")];
+const angleControl = document.querySelector('[data-help="angle"]');
 const vectorCanvas = document.querySelector("#cordicCanvas");
 const errorCanvas = document.querySelector("#errorCanvas");
 const ofdmCanvas = document.querySelector("#ofdmCanvas");
@@ -74,6 +76,10 @@ const help = {
   mode: {
     title: "CORDIC mode",
     text: "In rotation mode, the circuit consumes an angle z and rotates the input vector. In vectoring mode, it drives y toward zero and accumulates the vector angle in z. It is the same architecture with a different decision rule.",
+  },
+  architecture: {
+    title: "CORDIC architecture",
+    text: "Unchecked means iterative: one elementary CORDIC cell is reused during N clock cycles. Checked means pipeline/parallel: N elementary cells are instantiated and connected, one per iteration, so the hardware area grows but the throughput increases.",
   },
   iterations: {
     title: "Number of iterations",
@@ -93,7 +99,7 @@ const help = {
   },
   angle: {
     title: "Target angle",
-    text: "In rotation mode this is the angle to synthesize. In vectoring mode it is used as a visual reference against the angle actually measured by the algorithm.",
+    text: "Rotation-mode input angle. The CORDIC starts with this value in the z accumulator and drives z toward zero through microrotations.",
   },
   inputX: {
     title: "Initial X component",
@@ -157,6 +163,22 @@ const ofdmHelp = {
   graph: {
     title: "Frequency/time/constellation view",
     text: "The frequency view shows sinc curves and Δf. The time view shows the complex symbol with cyclic prefix. The constellation view shows noisy received symbols and ideal points.",
+  },
+  deltaF: {
+    title: "Subcarrier spacing Δf",
+    text: "Distance in frequency between two adjacent OFDM subcarriers. It is computed as Δf = Fs/NFFT, so increasing the sample rate widens the spacing and increasing NFFT narrows it.",
+  },
+  usefulTime: {
+    title: "Useful symbol time",
+    text: "Duration of the IFFT output before adding the cyclic prefix. It equals NFFT/Fs, and it is the interval that carries new constellation symbols.",
+  },
+  symbolTime: {
+    title: "Total OFDM symbol time",
+    text: "Full transmitted symbol duration after adding the cyclic prefix. It equals (NFFT + CP)/Fs, so a longer prefix improves guard time but reduces useful throughput.",
+  },
+  bitrate: {
+    title: "Raw transfer rate",
+    text: "Approximate uncoded payload rate from occupied data carriers, bits per constellation symbol, and total OFDM symbol time. It does not include pilots, coding, framing, or protocol overhead.",
   },
 };
 
@@ -402,6 +424,7 @@ function simulateOfdm() {
 
 function simulate() {
   const mode = controls.modeSelect.value;
+  const architecture = controls.pipeline.checked ? "pipeline" : "iterative";
   const iterations = Number(controls.iterations.value);
   const wordLength = Number(controls.wordLength.value);
   const fractionalBits = Math.min(Number(controls.fractionalBits.value), wordLength - 3);
@@ -451,6 +474,7 @@ function simulate() {
 
   state = {
     mode,
+    architecture,
     iterations,
     wordLength,
     fractionalBits,
@@ -549,10 +573,12 @@ function drawVector(ctx, center, units, x, y, color, label, width = 4) {
 function drawVectorScene() {
   const { width, height } = resizeCanvas(vectorCanvas);
   const center = { x: width * 0.5, y: height * 0.56 };
+  const idealMagnitude =
+    state.mode === "rotation" ? Math.hypot(state.idealRotated.x, state.idealRotated.y) : 0;
   const maxMagnitude = Math.max(
     1,
     Math.hypot(state.x0, state.y0),
-    Math.hypot(state.idealRotated.x, state.idealRotated.y),
+    idealMagnitude,
     ...state.rows.map((item) => Math.hypot(item.x, item.y)),
   );
   const units = (Math.min(width, height) * 0.42) / maxMagnitude;
@@ -928,17 +954,17 @@ function renderBusDiagram() {
     ${busChip(`z_${stage}`, `${radToDeg(input.z).toFixed(4)}°`, zInfo, zInfo.q)}
     <div class="datapath-core">
       <div class="datapath-block" data-help="busShift" tabindex="0">
-        <span>Desplazador x >>> ${stage}</span>
+        <span>x shifter >>> ${stage}</span>
         <strong>${shiftedX.toFixed(5)}</strong>
         <code>${fixedInfo(shiftedX, dataFrac, dataWidth).hex}</code>
       </div>
       <div class="datapath-block" data-help="busDecision" tabindex="0">
         <span>d_${stage}</span>
         <strong>${decision > 0 ? "+1" : decision < 0 ? "-1" : "0"}</strong>
-        <code>${state.mode === "rotation" ? "signo(z_i)" : "signo(y_i)"}</code>
+        <code>${state.mode === "rotation" ? "sign(z_i)" : "sign(y_i)"}</code>
       </div>
       <div class="datapath-block" data-help="busShift" tabindex="0">
-        <span>Desplazador y >>> ${stage}</span>
+        <span>y shifter >>> ${stage}</span>
         <strong>${shiftedY.toFixed(5)}</strong>
         <code>${fixedInfo(shiftedY, dataFrac, dataWidth).hex}</code>
       </div>
@@ -947,7 +973,11 @@ function renderBusDiagram() {
     ${busChip(`x_${stage + 1}`, output.x.toFixed(5), outXInfo, outXInfo.q)}
     ${busChip(`y_${stage + 1}`, output.y.toFixed(5), outYInfo, outYInfo.q)}
     ${busChip(`z_${stage + 1}`, `${radToDeg(output.z).toFixed(4)}°`, outZInfo, outZInfo.q)}
-    <p class="datapath-note">This block represents an iterative architecture: adders, shifters, and LUT entry ${stage} are reused every cycle.</p>
+    <p class="datapath-note">${
+      state.architecture === "pipeline"
+        ? `This block shows elementary cell ${stage}: the pipeline architecture instantiates and connects ${state.iterations} cells like this.`
+        : `This block represents one reused elementary cell: adders, shifters, and LUT entry ${stage} are selected over ${state.iterations} cycles.`
+    }</p>
   `;
 }
 
@@ -969,45 +999,191 @@ function renderMetrics() {
 
 function renderVhdl() {
   const modeName = state.mode === "rotation" ? "rotation" : "vectoring";
-  const directionRule =
+  const architectureName = state.architecture === "pipeline" ? "pipeline" : "iterative";
+  const decisionBlock =
     state.mode === "rotation"
-      ? "d_i <= 1 when z_i >= 0 else -1;"
-      : "d_i <= 1 when y_i >= 0 else -1;";
+      ? `if z_i >= 0 then
+      d_i := 1;
+    else
+      d_i := -1;
+    end if;`
+      : `if y_i >= 0 then
+      d_i := 1;
+    else
+      d_i := -1;
+    end if;`;
   const positiveBranch =
     state.mode === "rotation"
       ? {
-          x: "x(i) - shift_right(y(i), i)",
-          y: "y(i) + shift_right(x(i), i)",
-          z: "z(i) - atan_table(i)",
+          x: "x_i - shift_right(y_i, shift_i)",
+          y: "y_i + shift_right(x_i, shift_i)",
+          z: "z_i - atan_i",
         }
       : {
-          x: "x(i) + shift_right(y(i), i)",
-          y: "y(i) - shift_right(x(i), i)",
-          z: "z(i) + atan_table(i)",
+          x: "x_i + shift_right(y_i, shift_i)",
+          y: "y_i - shift_right(x_i, shift_i)",
+          z: "z_i + atan_i",
         };
   const negativeBranch =
     state.mode === "rotation"
       ? {
-          x: "x(i) + shift_right(y(i), i)",
-          y: "y(i) - shift_right(x(i), i)",
-          z: "z(i) + atan_table(i)",
+          x: "x_i + shift_right(y_i, shift_i)",
+          y: "y_i - shift_right(x_i, shift_i)",
+          z: "z_i + atan_i",
         }
       : {
-          x: "x(i) - shift_right(y(i), i)",
-          y: "y(i) + shift_right(x(i), i)",
-          z: "z(i) - atan_table(i)",
+          x: "x_i - shift_right(y_i, shift_i)",
+          y: "y_i + shift_right(x_i, shift_i)",
+          z: "z_i - atan_i",
         };
-  outputs.vhdlCode.textContent = `-- CORDIC ${modeName}
--- Current configuration:
---   x/y data: format (${state.wordLength},${state.fractionalBits})
---   z angles/atan LUT: format (${state.lutWidth},${state.lutWidth - 3})
---   Iterations: ${state.iterations}
-
-library ieee;
+  const atanEntries = Array.from({ length: state.iterations }, (_, i) => {
+    const atanValue = qAngle(Math.atan(2 ** -i), state.lutWidth);
+    const raw = fixedInfo(atanValue, state.lutWidth - 3, state.lutWidth).raw;
+    return `    ${i} => to_signed(${raw}, ANGLE_WIDTH)`;
+  }).join(",\n");
+  const atanTable = `  type atan_array is array (0 to ITERATIONS-1) of signed(ANGLE_WIDTH-1 downto 0);
+  constant atan_table : atan_array := (
+${atanEntries}
+  );`;
+  const vhdlContext = `library ieee;
 use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+use ieee.numeric_std.all;`;
 
-entity cordic_${modeName} is
+  const cellVhdl = `${vhdlContext}
+
+entity cordic_cell_${modeName} is
+  generic (
+    WORD_LENGTH : positive := ${state.wordLength};
+    ANGLE_WIDTH : positive := ${state.lutWidth}
+  );
+  port (
+    x_i     : in  signed(WORD_LENGTH-1 downto 0);
+    y_i     : in  signed(WORD_LENGTH-1 downto 0);
+    z_i     : in  signed(ANGLE_WIDTH-1 downto 0);
+    atan_i  : in  signed(ANGLE_WIDTH-1 downto 0);
+    shift_i : in  natural;
+    x_o     : out signed(WORD_LENGTH-1 downto 0);
+    y_o     : out signed(WORD_LENGTH-1 downto 0);
+    z_o     : out signed(ANGLE_WIDTH-1 downto 0)
+  );
+end entity;
+
+${vhdlContext}
+
+architecture combinational of cordic_cell_${modeName} is
+begin
+  process(all)
+    variable d_i : integer range -1 to 1;
+  begin
+    ${decisionBlock}
+
+    if d_i = 1 then
+      x_o <= ${positiveBranch.x};
+      y_o <= ${positiveBranch.y};
+      z_o <= ${positiveBranch.z};
+    else
+      x_o <= ${negativeBranch.x};
+      y_o <= ${negativeBranch.y};
+      z_o <= ${negativeBranch.z};
+    end if;
+  end process;
+end architecture;`;
+
+  const iterativeVhdl = `${vhdlContext}
+
+entity cordic_${modeName}_iterative is
+  generic (
+    WORD_LENGTH : positive := ${state.wordLength};
+    FRAC_BITS   : natural  := ${state.fractionalBits};
+    ANGLE_WIDTH : positive := ${state.lutWidth};
+    ITERATIONS  : positive := ${state.iterations}
+  );
+  port (
+    clk    : in  std_logic;
+    rst    : in  std_logic;
+    start  : in  std_logic;
+    x_in   : in  signed(WORD_LENGTH-1 downto 0);
+    y_in   : in  signed(WORD_LENGTH-1 downto 0);
+    z_in   : in  signed(ANGLE_WIDTH-1 downto 0);
+    busy   : out std_logic;
+    done   : out std_logic;
+    x_out  : out signed(WORD_LENGTH-1 downto 0);
+    y_out  : out signed(WORD_LENGTH-1 downto 0);
+    z_out  : out signed(ANGLE_WIDTH-1 downto 0)
+  );
+end entity;
+
+${vhdlContext}
+
+architecture rtl of cordic_${modeName}_iterative is
+${atanTable}
+  signal x_reg, y_reg : signed(WORD_LENGTH-1 downto 0);
+  signal z_reg        : signed(ANGLE_WIDTH-1 downto 0);
+  signal x_next, y_next : signed(WORD_LENGTH-1 downto 0);
+  signal z_next         : signed(ANGLE_WIDTH-1 downto 0);
+  signal stage_index    : natural range 0 to ITERATIONS-1 := 0;
+  signal running        : std_logic := '0';
+begin
+  elementary_cell : entity work.cordic_cell_${modeName}
+    generic map (
+      WORD_LENGTH => WORD_LENGTH,
+      ANGLE_WIDTH => ANGLE_WIDTH
+    )
+    port map (
+      x_i     => x_reg,
+      y_i     => y_reg,
+      z_i     => z_reg,
+      atan_i  => atan_table(stage_index),
+      shift_i => stage_index,
+      x_o     => x_next,
+      y_o     => y_next,
+      z_o     => z_next
+    );
+
+  process(clk)
+  begin
+    if rising_edge(clk) then
+      if rst = '1' then
+        x_reg <= (others => '0');
+        y_reg <= (others => '0');
+        z_reg <= (others => '0');
+        stage_index <= 0;
+        running <= '0';
+        done <= '0';
+      elsif start = '1' and running = '0' then
+        x_reg <= x_in;
+        y_reg <= y_in;
+        z_reg <= z_in;
+        stage_index <= 0;
+        running <= '1';
+        done <= '0';
+      elsif running = '1' then
+        x_reg <= x_next;
+        y_reg <= y_next;
+        z_reg <= z_next;
+
+        if stage_index = ITERATIONS-1 then
+          running <= '0';
+          done <= '1';
+        else
+          stage_index <= stage_index + 1;
+          done <= '0';
+        end if;
+      else
+        done <= '0';
+      end if;
+    end if;
+  end process;
+
+  busy <= running;
+  x_out <= x_reg;
+  y_out <= y_reg;
+  z_out <= z_reg;
+end architecture;`;
+
+  const pipelineVhdl = `${vhdlContext}
+
+entity cordic_${modeName}_pipeline is
   generic (
     WORD_LENGTH : positive := ${state.wordLength};
     FRAC_BITS   : natural  := ${state.fractionalBits};
@@ -1026,45 +1202,72 @@ entity cordic_${modeName} is
   );
 end entity;
 
-architecture rtl of cordic_${modeName} is
-  type reg_array is array (0 to ITERATIONS) of signed(WORD_LENGTH-1 downto 0);
+${vhdlContext}
+
+architecture structural of cordic_${modeName}_pipeline is
+${atanTable}
+  type data_array is array (0 to ITERATIONS) of signed(WORD_LENGTH-1 downto 0);
   type angle_array is array (0 to ITERATIONS) of signed(ANGLE_WIDTH-1 downto 0);
-  signal x, y : reg_array;
-  signal z    : angle_array;
+  signal x_stage, y_stage : data_array;
+  signal z_stage          : angle_array;
+  signal x_cell, y_cell   : data_array;
+  signal z_cell           : angle_array;
 begin
-  x(0) <= x_in;
-  y(0) <= y_in;
-  z(0) <= z_in;
+  x_stage(0) <= x_in;
+  y_stage(0) <= y_in;
+  z_stage(0) <= z_in;
 
   stages : for i in 0 to ITERATIONS-1 generate
-    signal d_i : integer range -1 to 1;
   begin
-    ${directionRule}
+    cell_i : entity work.cordic_cell_${modeName}
+      generic map (
+        WORD_LENGTH => WORD_LENGTH,
+        ANGLE_WIDTH => ANGLE_WIDTH
+      )
+      port map (
+        x_i     => x_stage(i),
+        y_i     => y_stage(i),
+        z_i     => z_stage(i),
+        atan_i  => atan_table(i),
+        shift_i => i,
+        x_o     => x_cell(i+1),
+        y_o     => y_cell(i+1),
+        z_o     => z_cell(i+1)
+      );
 
-    process(clk)
+    stage_register : process(clk)
     begin
       if rising_edge(clk) then
         if rst = '1' then
-          x(i+1) <= (others => '0');
-          y(i+1) <= (others => '0');
-          z(i+1) <= (others => '0');
-        elsif d_i = 1 then
-          x(i+1) <= ${positiveBranch.x};
-          y(i+1) <= ${positiveBranch.y};
-          z(i+1) <= ${positiveBranch.z};
+          x_stage(i+1) <= (others => '0');
+          y_stage(i+1) <= (others => '0');
+          z_stage(i+1) <= (others => '0');
         else
-          x(i+1) <= ${negativeBranch.x};
-          y(i+1) <= ${negativeBranch.y};
-          z(i+1) <= ${negativeBranch.z};
+          x_stage(i+1) <= x_cell(i+1);
+          y_stage(i+1) <= y_cell(i+1);
+          z_stage(i+1) <= z_cell(i+1);
         end if;
       end if;
     end process;
   end generate;
 
-  x_out <= x(ITERATIONS);
-  y_out <= y(ITERATIONS);
-  z_out <= z(ITERATIONS);
+  x_out <= x_stage(ITERATIONS);
+  y_out <= y_stage(ITERATIONS);
+  z_out <= z_stage(ITERATIONS);
 end architecture;`;
+
+  outputs.vhdlCode.textContent = `-- CORDIC ${modeName} (${architectureName} architecture)
+-- Current configuration:
+--   x/y data: format (${state.wordLength},${state.fractionalBits})
+--   z angles/atan LUT: format (${state.lutWidth},${state.lutWidth - 3})
+--   Iterations: ${state.iterations}
+--   Architecture: ${architectureName}
+-- The elementary cell is always defined. The selected top level either
+-- reuses one cell over N cycles or instantiates and connects N cells.
+
+${cellVhdl}
+
+${state.architecture === "pipeline" ? pipelineVhdl : iterativeVhdl}`;
 }
 
 function renderLabels() {
@@ -1073,6 +1276,8 @@ function renderLabels() {
   outputs.fractionalBits.textContent = state.fractionalBits;
   outputs.lutWidth.textContent = `${state.lutWidth} bits`;
   outputs.angle.textContent = `${state.angleDeg}°`;
+  angleControl.hidden = state.mode !== "rotation";
+  controls.angle.disabled = state.mode !== "rotation";
   outputs.runStatus.textContent = "Model updated";
   outputs.stageTitle.textContent =
     state.mode === "rotation" ? "Step-by-step rotation" : "Step-by-step vectoring";
