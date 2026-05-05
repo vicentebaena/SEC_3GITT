@@ -654,9 +654,11 @@ function drawOfdmFrequency() {
   const pad = { left: 58, right: 28, top: 34, bottom: 54 };
   const w = width - pad.left - pad.right;
   const h = height - pad.top - pad.bottom;
-  const { bins, occupied, deltaF } = ofdmState;
-  const minBin = Math.min(...bins) - 2;
-  const maxBin = Math.max(...bins) + 2;
+  const { bins, nfft, occupied, deltaF } = ofdmState;
+  const occupiedSet = new Set(bins);
+  const allBins = Array.from({ length: nfft }, (_, index) => index - Math.floor(nfft / 2));
+  const minBin = -Math.floor(nfft / 2) - 0.5;
+  const maxBin = Math.ceil(nfft / 2) - 0.5;
   const span = maxBin - minBin;
   ofdmCtx.clearRect(0, 0, width, height);
   ofdmCtx.fillStyle = "#071013";
@@ -667,13 +669,13 @@ function drawOfdmFrequency() {
   const yFor = (amp) => pad.top + h - amp * h * 0.82;
   ofdmCtx.strokeStyle = "rgba(199, 231, 226, 0.13)";
   ofdmCtx.lineWidth = 1;
-  for (let k = Math.ceil(minBin); k <= Math.floor(maxBin); k += 1) {
+  allBins.forEach((k) => {
     const x = xFor(k);
     ofdmCtx.beginPath();
     ofdmCtx.moveTo(x, pad.top);
     ofdmCtx.lineTo(x, height - pad.bottom);
     ofdmCtx.stroke();
-  }
+  });
 
   bins.forEach((bin, index) => {
     const hue = 175 + ((index % 7) - 3) * 13;
@@ -690,6 +692,18 @@ function drawOfdmFrequency() {
     }
     ofdmCtx.stroke();
   });
+
+  ofdmCtx.strokeStyle = "rgba(167, 187, 183, 0.55)";
+  ofdmCtx.lineWidth = 2;
+  allBins
+    .filter((bin) => !occupiedSet.has(bin))
+    .forEach((bin) => {
+      const x = xFor(bin);
+      ofdmCtx.beginPath();
+      ofdmCtx.moveTo(x, height - pad.bottom + 6);
+      ofdmCtx.lineTo(x, height - pad.bottom - 12);
+      ofdmCtx.stroke();
+    });
 
   ofdmCtx.strokeStyle = "rgba(255, 200, 87, 0.95)";
   ofdmCtx.lineWidth = 4;

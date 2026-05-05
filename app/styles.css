@@ -141,14 +141,15 @@ h2 {
 }
 
 .view-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+  width: min(100%, 390px);
 }
 
 .view-tabs .tab {
-  min-width: 104px;
+  min-width: 0;
+  padding-inline: 10px;
 }
 
 .hero-grid {
