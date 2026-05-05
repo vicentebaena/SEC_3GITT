@@ -63,6 +63,7 @@ const labViews = {
   ofdm: document.querySelector("#ofdmLab"),
 };
 const tabs = [...document.querySelectorAll(".cordic-tab")];
+const cordicViewTabs = [...document.querySelectorAll(".cordic-view-tab")];
 const ofdmViewTabs = [...document.querySelectorAll(".ofdm-view-tab")];
 const angleControl = document.querySelector('[data-help="angle"]');
 const vectorCanvas = document.querySelector("#cordicCanvas");
@@ -108,6 +109,10 @@ const help = {
   inputY: {
     title: "Initial Y component",
     text: "Represents the y-register input. In communications, it can be the quadrature component of a complex sample. In vectoring mode, CORDIC tries to drive it to zero.",
+  },
+  cordicGraph: {
+    title: "CORDIC graph",
+    text: "Vector view shows the geometric microrotations. Angle steps view shows the accumulated angle after each iteration and the reference angle it is trying to reach.",
   },
   busData: {
     title: "Fixed-point data bus",
@@ -190,6 +195,7 @@ let lastFrame = 0;
 let audioContext = null;
 let activeLab = "cordic";
 let ofdmState = {};
+let cordicView = "vector";
 let ofdmView = "frequency";
 const animationIntervalMs = 1450;
 
@@ -609,6 +615,115 @@ function drawVectorScene() {
   vectorCtx.font = "750 20px Inter, sans-serif";
   vectorCtx.fillStyle = "rgba(167, 187, 183, 0.95)";
   vectorCtx.fillText(`x=${row.x.toFixed(5)}  y=${row.y.toFixed(5)}  d=${row.d}`, 28, 78);
+}
+
+function drawCordicAngleSteps() {
+  const { width, height } = resizeCanvas(vectorCanvas);
+  const pad = { left: 72, right: 34, top: 50, bottom: 58 };
+  const w = width - pad.left - pad.right;
+  const h = height - pad.top - pad.bottom;
+  const values =
+    state.mode === "rotation"
+      ? state.rows.map((row) => state.targetRad - row.z)
+      : state.rows.map((row) => row.z);
+  const reference = state.mode === "rotation" ? state.targetRad : Math.atan2(state.y0, state.x0);
+  const allValues = [...values, reference, 0];
+  const minValue = Math.min(...allValues);
+  const maxValue = Math.max(...allValues);
+  const margin = Math.max(((maxValue - minValue) || 0.2) * 0.18, (4 * Math.PI) / 180);
+  const yMin = minValue - margin;
+  const yMax = maxValue + margin;
+  const xFor = (idx) => pad.left + (w * idx) / Math.max(1, values.length - 1);
+  const yFor = (value) => pad.top + h - ((value - yMin) / (yMax - yMin)) * h;
+  const activeIndex = Math.min(activeStep, values.length - 1);
+  const activeValue = values[activeIndex] ?? values[0];
+  const drawStepTrace = (lastIndex) => {
+    vectorCtx.beginPath();
+    values.slice(0, lastIndex + 1).forEach((value, idx) => {
+      const x = xFor(idx);
+      const y = yFor(value);
+      if (idx === 0) {
+        vectorCtx.moveTo(x, y);
+      } else {
+        vectorCtx.lineTo(x, yFor(values[idx - 1]));
+        vectorCtx.lineTo(x, y);
+      }
+    });
+    vectorCtx.stroke();
+  };
+
+  vectorCtx.clearRect(0, 0, width, height);
+  vectorCtx.fillStyle = "#071013";
+  vectorCtx.fillRect(0, 0, width, height);
+
+  vectorCtx.strokeStyle = "rgba(199, 231, 226, 0.14)";
+  vectorCtx.lineWidth = 1;
+  vectorCtx.font = "700 13px Inter, sans-serif";
+  vectorCtx.fillStyle = "rgba(167, 187, 183, 0.92)";
+  for (let i = 0; i <= 4; i += 1) {
+    const value = yMin + ((yMax - yMin) * i) / 4;
+    const y = yFor(value);
+    vectorCtx.beginPath();
+    vectorCtx.moveTo(pad.left, y);
+    vectorCtx.lineTo(width - pad.right, y);
+    vectorCtx.stroke();
+    vectorCtx.fillText(`${radToDeg(value).toFixed(1)}°`, 12, y + 4);
+  }
+
+  vectorCtx.strokeStyle = "rgba(238, 248, 246, 0.38)";
+  vectorCtx.beginPath();
+  vectorCtx.moveTo(pad.left, pad.top);
+  vectorCtx.lineTo(pad.left, height - pad.bottom);
+  vectorCtx.lineTo(width - pad.right, height - pad.bottom);
+  vectorCtx.stroke();
+
+  const refY = yFor(reference);
+  vectorCtx.strokeStyle = "rgba(255, 200, 87, 0.90)";
+  vectorCtx.lineWidth = 3;
+  vectorCtx.setLineDash([12, 8]);
+  vectorCtx.beginPath();
+  vectorCtx.moveTo(pad.left, refY);
+  vectorCtx.lineTo(width - pad.right, refY);
+  vectorCtx.stroke();
+  vectorCtx.setLineDash([]);
+
+  vectorCtx.strokeStyle = "rgba(72, 214, 200, 0.18)";
+  vectorCtx.lineWidth = 3;
+  drawStepTrace(values.length - 1);
+
+  vectorCtx.strokeStyle = "#48d6c8";
+  vectorCtx.lineWidth = 5;
+  drawStepTrace(activeIndex);
+
+  values.forEach((value, idx) => {
+    vectorCtx.fillStyle =
+      idx === activeIndex ? "#ffc857" : idx < activeIndex ? "#c8f560" : "rgba(200, 245, 96, 0.25)";
+    vectorCtx.beginPath();
+    vectorCtx.arc(xFor(idx), yFor(value), idx === activeIndex ? 7 : 4, 0, Math.PI * 2);
+    vectorCtx.fill();
+  });
+
+  vectorCtx.fillStyle = "rgba(238, 248, 246, 0.92)";
+  vectorCtx.font = "900 24px Inter, sans-serif";
+  vectorCtx.fillText(
+    state.mode === "rotation" ? "Accumulated rotation angle" : "Accumulated vectoring angle",
+    pad.left,
+    32,
+  );
+  vectorCtx.font = "750 15px Inter, sans-serif";
+  vectorCtx.fillStyle = "rgba(255, 200, 87, 0.95)";
+  vectorCtx.fillText(
+    state.mode === "rotation"
+      ? `target = ${radToDeg(reference).toFixed(4)}°`
+      : `true input angle = ${radToDeg(reference).toFixed(4)}°`,
+    width - pad.right - 230,
+    Math.max(26, refY - 10),
+  );
+  vectorCtx.fillStyle = "rgba(238, 248, 246, 0.86)";
+  vectorCtx.fillText(`iteration ${activeStep}: ${radToDeg(activeValue).toFixed(4)}°`, pad.left, height - 22);
+  vectorCtx.fillStyle = "rgba(167, 187, 183, 0.95)";
+  vectorCtx.fillText("iteration", width - 116, height - 22);
+  vectorCtx.fillText("angle", 18, pad.top - 18);
 }
 
 function drawErrorChart() {
@@ -1280,12 +1395,21 @@ function renderLabels() {
   controls.angle.disabled = state.mode !== "rotation";
   outputs.runStatus.textContent = "Model updated";
   outputs.stageTitle.textContent =
-    state.mode === "rotation" ? "Step-by-step rotation" : "Step-by-step vectoring";
+    cordicView === "vector"
+      ? state.mode === "rotation"
+        ? "Step-by-step rotation"
+        : "Step-by-step vectoring"
+      : "Angle steps over iterations";
   outputs.stageSubtitle.textContent =
-    state.mode === "rotation"
-      ? "The vector approaches the requested angle using only additions, subtractions, and shifts."
-      : "The algorithm drives the y component toward zero and accumulates the complex-sample angle.";
+    cordicView === "vector"
+      ? state.mode === "rotation"
+        ? "The vector approaches the requested angle using only additions, subtractions, and shifts."
+        : "The algorithm drives the y component toward zero and accumulates the complex-sample angle."
+      : state.mode === "rotation"
+        ? "The staircase shows the accumulated microrotation angle converging to the target angle."
+        : "The staircase shows the accumulated angle converging to the input vector phase.";
   tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.mode === state.mode));
+  cordicViewTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.cordicView === cordicView));
 }
 
 function renderOfdm() {
@@ -1322,7 +1446,8 @@ function renderOfdm() {
 
 function renderAll() {
   renderLabels();
-  drawVectorScene();
+  if (cordicView === "vector") drawVectorScene();
+  else drawCordicAngleSteps();
   drawErrorChart();
   renderBusDiagram();
   renderTable();
@@ -1360,6 +1485,13 @@ Object.values(controls).forEach((control) => {
 
 tabs.forEach((tab) => {
   tab.addEventListener("click", () => setMode(tab.dataset.mode));
+});
+
+cordicViewTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    cordicView = tab.dataset.cordicView;
+    renderAll();
+  });
 });
 
 labTabs.forEach((tab) => {

@@ -97,10 +97,14 @@
                 <h2 id="stageTitle">Step-by-step rotation</h2>
                 <p id="stageSubtitle">The vector approaches the requested angle using only additions, subtractions, and shifts.</p>
               </div>
+              <div class="view-tabs cordic-view-tabs" aria-label="CORDIC graph view">
+                <button class="tab cordic-view-tab active" type="button" data-cordic-view="vector">Vector</button>
+                <button class="tab cordic-view-tab" type="button" data-cordic-view="angle">Angle steps</button>
+              </div>
               <button id="playPause" class="icon-button" type="button" aria-label="Play animation">▶</button>
             </div>
             <div class="stage-body">
-              <canvas id="cordicCanvas" width="900" height="620"></canvas>
+              <canvas id="cordicCanvas" width="900" height="620" tabindex="0" data-help="cordicGraph"></canvas>
               <article class="help-box" aria-live="polite">
                 <p class="help-kicker">Context help</p>
                 <h3 id="helpTitle">Hover a control</h3>

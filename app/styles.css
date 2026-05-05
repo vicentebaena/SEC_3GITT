@@ -152,6 +152,11 @@ h2 {
   padding-inline: 10px;
 }
 
+.cordic-view-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 260px);
+}
+
 .hero-grid {
   display: grid;
   grid-template-columns: 370px minmax(0, 1fr);
