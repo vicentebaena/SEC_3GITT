@@ -13,9 +13,10 @@ La app incluye un laboratorio visual de CORDIC con:
 
 También incluye un laboratorio OFDM con:
 
-- Control de `NFFT`, portadoras ocupadas, frecuencia de muestreo, prefijo cíclico, constelación y simetría hermítica.
+- Control de `NFFT`, portadoras ocupadas, frecuencia de muestreo, prefijo cíclico, constelación, SNR y simetría hermítica.
 - Vista en frecuencia con las sinc de las subportadoras ocupadas y separación `Δf`.
 - Vista temporal del símbolo complejo con parte real, parte imaginaria y prefijo cíclico.
+- Scatterplot de constelación recibida con ruido y referencias ideales.
 - Cálculo de la tasa bruta de transferencia.
 
 ## Uso local

@@ -140,6 +140,17 @@ h2 {
   min-width: 0;
 }
 
+.view-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.view-tabs .tab {
+  min-width: 104px;
+}
+
 .hero-grid {
   display: grid;
   grid-template-columns: 370px minmax(0, 1fr);

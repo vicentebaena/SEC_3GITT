@@ -15,6 +15,7 @@ const ofdmControls = {
   sampleRate: document.querySelector("#ofdmSampleRate"),
   cp: document.querySelector("#ofdmCp"),
   constellation: document.querySelector("#ofdmConstellation"),
+  snr: document.querySelector("#ofdmSnr"),
   hermitian: document.querySelector("#ofdmHermitian"),
 };
 
@@ -43,6 +44,7 @@ const ofdmOutputs = {
   occupied: document.querySelector("#ofdmOccupiedOut"),
   sampleRate: document.querySelector("#ofdmSampleRateOut"),
   cp: document.querySelector("#ofdmCpOut"),
+  snr: document.querySelector("#ofdmSnrOut"),
   deltaF: document.querySelector("#ofdmDeltaF"),
   usefulTime: document.querySelector("#ofdmUsefulTime"),
   symbolTime: document.querySelector("#ofdmSymbolTime"),
@@ -52,7 +54,6 @@ const ofdmOutputs = {
   runStatus: document.querySelector("#ofdmRunStatus"),
   stageTitle: document.querySelector("#ofdmStageTitle"),
   stageSubtitle: document.querySelector("#ofdmStageSubtitle"),
-  viewToggle: document.querySelector("#ofdmViewToggle"),
 };
 
 const labTabs = [...document.querySelectorAll(".lab-tab")];
@@ -61,6 +62,7 @@ const labViews = {
   ofdm: document.querySelector("#ofdmLab"),
 };
 const tabs = [...document.querySelectorAll(".cordic-tab")];
+const ofdmViewTabs = [...document.querySelectorAll(".ofdm-view-tab")];
 const vectorCanvas = document.querySelector("#cordicCanvas");
 const errorCanvas = document.querySelector("#errorCanvas");
 const ofdmCanvas = document.querySelector("#ofdmCanvas");
@@ -144,13 +146,17 @@ const ofdmHelp = {
     title: "Constelación",
     text: "La constelación fija cuántos bits transporta cada portadora ocupada: BPSK usa 1 bit, QPSK 2 bits y 16QAM 4 bits por símbolo de subportadora.",
   },
+  snr: {
+    title: "SNR",
+    text: "Relación señal a ruido en dB usada en la vista de constelación recibida. Una SNR baja abre más la nube de puntos; una SNR alta hace que los puntos recibidos se agrupen cerca de la constelación ideal.",
+  },
   hermitian: {
     title: "Simetría hermítica",
     text: "Activa X[-k] = conj(X[k]) para que la IFFT produzca una señal temporal real. Es útil en sistemas ópticos de intensidad, como LiFi. En este modo DC se deja nula y el número de portadoras ocupadas debe ser par.",
   },
   graph: {
-    title: "Vista frecuencia/tiempo",
-    text: "En frecuencia se muestran las sinc de las portadoras ocupadas y la separación Δf. En tiempo se representa un símbolo OFDM complejo y se marca la zona copiada como prefijo cíclico.",
+    title: "Vista frecuencia/tiempo/constelación",
+    text: "En frecuencia se muestran las sinc y Δf. En tiempo se representa el símbolo complejo con prefijo cíclico. En constelación se ven los símbolos recibidos con ruido y los puntos ideales.",
   },
 };
 
@@ -258,6 +264,12 @@ function randomIndex(seed, size) {
   return Math.floor(seededUnit(seed) * size) % size;
 }
 
+function gaussianNoise(seed) {
+  const u1 = Math.max(1e-9, seededUnit(seed));
+  const u2 = seededUnit(seed + 19.37);
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+
 function constellationPoint(seed, constellation) {
   if (constellation === "bpsk") return { re: randomIndex(seed, 2) === 0 ? 1 : -1, im: 0 };
   if (constellation === "qpsk") {
@@ -273,6 +285,20 @@ function constellationPoint(seed, constellation) {
   const levels = [-3, -1, 3, 1];
   const point = randomIndex(seed, 16);
   return { re: levels[point % 4] / Math.sqrt(10), im: levels[Math.floor(point / 4) % 4] / Math.sqrt(10) };
+}
+
+function idealConstellationPoints(constellation) {
+  if (constellation === "bpsk") return [{ re: -1, im: 0 }, { re: 1, im: 0 }];
+  if (constellation === "qpsk") {
+    return [
+      { re: 1 / Math.SQRT2, im: 1 / Math.SQRT2 },
+      { re: -1 / Math.SQRT2, im: 1 / Math.SQRT2 },
+      { re: -1 / Math.SQRT2, im: -1 / Math.SQRT2 },
+      { re: 1 / Math.SQRT2, im: -1 / Math.SQRT2 },
+    ];
+  }
+  const levels = [-3, -1, 1, 3];
+  return levels.flatMap((re) => levels.map((im) => ({ re: re / Math.sqrt(10), im: im / Math.sqrt(10) })));
 }
 
 function sinc(x) {
@@ -310,19 +336,24 @@ function simulateOfdm() {
   ofdmControls.cp.value = cp;
   const sampleRate = Math.max(1, Number(ofdmControls.sampleRate.value));
   const constellation = ofdmControls.constellation.value;
+  const snrDb = Number(ofdmControls.snr.value);
   const bins = occupiedBins(nfft, occupied, hermitian);
   const spectrum = Array.from({ length: nfft }, () => ({ re: 0, im: 0 }));
+  const dataSymbols = [];
   if (hermitian) {
     const positiveBins = bins.filter((bin) => bin > 0);
     positiveBins.forEach((bin, index) => {
       const point = constellationPoint(index + nfft + occupied, constellation);
+      dataSymbols.push(point);
       spectrum[bin] = point;
       spectrum[nfft - bin] = { re: point.re, im: -point.im };
     });
   } else {
     bins.forEach((bin, index) => {
+      const point = constellationPoint(index + nfft + occupied, constellation);
       const arrayIndex = (bin + nfft) % nfft;
-      spectrum[arrayIndex] = constellationPoint(index + nfft + occupied, constellation);
+      spectrum[arrayIndex] = point;
+      dataSymbols.push(point);
     });
   }
   const useful = [];
@@ -343,7 +374,24 @@ function simulateOfdm() {
   const symbolTime = (nfft + cp) / sampleRate;
   const independentCarriers = hermitian ? occupied / 2 : occupied;
   const bitrate = (independentCarriers * bitsPerSymbol(constellation)) / symbolTime;
-  ofdmState = { nfft, occupied, sampleRate, cp, constellation, hermitian, bins, useful, waveform, deltaF, usefulTime, symbolTime, bitrate, independentCarriers };
+  ofdmState = {
+    nfft,
+    occupied,
+    sampleRate,
+    cp,
+    constellation,
+    snrDb,
+    hermitian,
+    bins,
+    useful,
+    waveform,
+    dataSymbols,
+    deltaF,
+    usefulTime,
+    symbolTime,
+    bitrate,
+    independentCarriers,
+  };
   renderOfdm();
 }
 
@@ -728,6 +776,67 @@ function drawOfdmTime() {
   ofdmCtx.fillText(`${nfft} muestras útiles + ${cp} de prefijo`, pad.left, height - 18);
 }
 
+function drawOfdmConstellation() {
+  const { width, height } = resizeCanvas(ofdmCanvas);
+  const pad = { left: 58, right: 34, top: 36, bottom: 54 };
+  const w = width - pad.left - pad.right;
+  const h = height - pad.top - pad.bottom;
+  const plotSize = Math.min(w, h);
+  const origin = { x: pad.left + w / 2, y: pad.top + h / 2 };
+  const scale = plotSize * 0.36;
+  const noiseSigma = Math.sqrt(1 / (2 * 10 ** (ofdmState.snrDb / 10)));
+  ofdmCtx.clearRect(0, 0, width, height);
+  ofdmCtx.fillStyle = "#071013";
+  ofdmCtx.fillRect(0, 0, width, height);
+  ofdmCtx.strokeStyle = "rgba(238, 248, 246, 0.28)";
+  ofdmCtx.lineWidth = 1;
+  ofdmCtx.beginPath();
+  ofdmCtx.moveTo(pad.left, origin.y);
+  ofdmCtx.lineTo(width - pad.right, origin.y);
+  ofdmCtx.moveTo(origin.x, pad.top);
+  ofdmCtx.lineTo(origin.x, height - pad.bottom);
+  ofdmCtx.stroke();
+
+  const xFor = (value) => origin.x + value * scale;
+  const yFor = (value) => origin.y - value * scale;
+  ofdmCtx.fillStyle = "rgba(72, 214, 200, 0.48)";
+  ofdmState.dataSymbols.forEach((symbol, index) => {
+    const noisyRe = symbol.re + noiseSigma * gaussianNoise(index + 101);
+    const noisyIm = symbol.im + noiseSigma * gaussianNoise(index + 211);
+    ofdmCtx.beginPath();
+    ofdmCtx.arc(xFor(noisyRe), yFor(noisyIm), 4.5, 0, Math.PI * 2);
+    ofdmCtx.fill();
+  });
+
+  ofdmCtx.strokeStyle = "#ffc857";
+  ofdmCtx.fillStyle = "#ffc857";
+  ofdmCtx.lineWidth = 2;
+  idealConstellationPoints(ofdmState.constellation).forEach((point) => {
+    const x = xFor(point.re);
+    const y = yFor(point.im);
+    ofdmCtx.beginPath();
+    ofdmCtx.moveTo(x - 8, y);
+    ofdmCtx.lineTo(x + 8, y);
+    ofdmCtx.moveTo(x, y - 8);
+    ofdmCtx.lineTo(x, y + 8);
+    ofdmCtx.stroke();
+    ofdmCtx.beginPath();
+    ofdmCtx.arc(x, y, 3, 0, Math.PI * 2);
+    ofdmCtx.fill();
+  });
+
+  ofdmCtx.fillStyle = "rgba(238, 248, 246, 0.86)";
+  ofdmCtx.font = "900 16px Inter, sans-serif";
+  ofdmCtx.fillText(`SNR = ${ofdmState.snrDb} dB`, pad.left, pad.top + 4);
+  ofdmCtx.fillStyle = "#ffc857";
+  ofdmCtx.fillText("ideal", width - pad.right - 120, pad.top + 4);
+  ofdmCtx.fillStyle = "#48d6c8";
+  ofdmCtx.fillText("recibida", width - pad.right - 70, pad.top + 4);
+  ofdmCtx.fillStyle = "rgba(167, 187, 183, 0.95)";
+  ofdmCtx.font = "700 14px Inter, sans-serif";
+  ofdmCtx.fillText(`${ofdmState.dataSymbols.length} símbolos de datos con ruido AWGN`, pad.left, height - 18);
+}
+
 function renderTable() {
   outputs.iterationTable.innerHTML = state.rows
     .map(
@@ -940,23 +1049,31 @@ function renderOfdm() {
   ofdmOutputs.occupied.textContent = ofdmState.occupied;
   ofdmOutputs.sampleRate.textContent = formatFrequency(ofdmState.sampleRate);
   ofdmOutputs.cp.textContent = ofdmState.cp;
+  ofdmOutputs.snr.textContent = `${ofdmState.snrDb} dB`;
   ofdmOutputs.deltaF.textContent = formatFrequency(ofdmState.deltaF);
   ofdmOutputs.usefulTime.textContent = formatTime(ofdmState.usefulTime);
   ofdmOutputs.symbolTime.textContent = formatTime(ofdmState.symbolTime);
   ofdmOutputs.bitrate.textContent = formatBitrate(ofdmState.bitrate);
   ofdmOutputs.runStatus.textContent = "Modelo actualizado";
-  ofdmOutputs.viewToggle.textContent = ofdmView === "frequency" ? "Ver tiempo" : "Ver frecuencia";
+  ofdmViewTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.ofdmView === ofdmView));
   ofdmOutputs.stageTitle.textContent =
-    ofdmView === "frequency" ? "Espectro de subportadoras OFDM" : "Símbolo OFDM en tiempo";
+    ofdmView === "frequency"
+      ? "Espectro de subportadoras OFDM"
+      : ofdmView === "time"
+        ? "Símbolo OFDM en tiempo"
+        : "Constelación recibida";
   ofdmOutputs.stageSubtitle.textContent =
     ofdmView === "frequency"
       ? ofdmState.hermitian
         ? "Las portadoras positivas contienen datos y las negativas son sus conjugadas para obtener una señal temporal real."
         : "Las sinc de las portadoras ocupadas tienen ceros en los centros de las portadoras vecinas; DC está ocupada."
-      : "La parte inicial marcada copia el final del símbolo útil: es el prefijo cíclico.";
+      : ofdmView === "time"
+        ? "La parte inicial marcada copia el final del símbolo útil: es el prefijo cíclico."
+        : "Los puntos recibidos incorporan ruido AWGN según la SNR; las cruces marcan la constelación ideal.";
   if (activeLab === "ofdm") {
     if (ofdmView === "frequency") drawOfdmFrequency();
-    else drawOfdmTime();
+    else if (ofdmView === "time") drawOfdmTime();
+    else drawOfdmConstellation();
   }
 }
 
@@ -1010,9 +1127,11 @@ Object.values(ofdmControls).forEach((control) => {
   control.addEventListener("input", simulateOfdm);
 });
 
-ofdmOutputs.viewToggle.addEventListener("click", () => {
-  ofdmView = ofdmView === "frequency" ? "time" : "frequency";
-  renderOfdm();
+ofdmViewTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    ofdmView = tab.dataset.ofdmView;
+    renderOfdm();
+  });
 });
 
 function showHelp(helpKey) {

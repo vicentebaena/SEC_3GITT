@@ -174,7 +174,6 @@
                   <option value="32">32</option>
                   <option value="64" selected>64</option>
                   <option value="128">128</option>
-                  <option value="256">256</option>
                 </select>
               </label>
 
@@ -205,6 +204,12 @@
                 </select>
               </label>
 
+              <label class="control" data-ofdm-help="snr">
+                <span>SNR</span>
+                <input id="ofdmSnr" type="range" min="0" max="40" step="1" value="22" />
+                <output id="ofdmSnrOut">22 dB</output>
+              </label>
+
               <label class="control toggle-control" data-ofdm-help="hermitian">
                 <span>Simetría hermítica</span>
                 <input id="ofdmHermitian" type="checkbox" />
@@ -218,7 +223,11 @@
                 <h2 id="ofdmStageTitle">Espectro de subportadoras OFDM</h2>
                 <p id="ofdmStageSubtitle">Cada portadora ocupada es ortogonal a las demás: sus ceros caen justo sobre los centros vecinos.</p>
               </div>
-              <button id="ofdmViewToggle" class="view-toggle" type="button">Ver tiempo</button>
+              <div class="view-tabs" aria-label="Vista OFDM">
+                <button class="tab ofdm-view-tab active" type="button" data-ofdm-view="frequency">Frecuencia</button>
+                <button class="tab ofdm-view-tab" type="button" data-ofdm-view="time">Tiempo</button>
+                <button class="tab ofdm-view-tab" type="button" data-ofdm-view="constellation">Constelación</button>
+              </div>
             </div>
             <div class="stage-body">
               <canvas id="ofdmCanvas" width="900" height="620" tabindex="0" data-ofdm-help="graph"></canvas>
