@@ -340,6 +340,10 @@ function simulateOfdm() {
   const bins = occupiedBins(nfft, occupied, hermitian);
   const spectrum = Array.from({ length: nfft }, () => ({ re: 0, im: 0 }));
   const dataSymbols = [];
+  const constellationSampleCount = 1000;
+  const constellationSamples = Array.from({ length: constellationSampleCount }, (_, index) =>
+    constellationPoint(index + 4096, constellation),
+  );
   if (hermitian) {
     const positiveBins = bins.filter((bin) => bin > 0);
     positiveBins.forEach((bin, index) => {
@@ -386,6 +390,7 @@ function simulateOfdm() {
     useful,
     waveform,
     dataSymbols,
+    constellationSamples,
     deltaF,
     usefulTime,
     symbolTime,
@@ -799,12 +804,12 @@ function drawOfdmConstellation() {
 
   const xFor = (value) => origin.x + value * scale;
   const yFor = (value) => origin.y - value * scale;
-  ofdmCtx.fillStyle = "rgba(72, 214, 200, 0.48)";
-  ofdmState.dataSymbols.forEach((symbol, index) => {
+  ofdmCtx.fillStyle = "rgba(72, 214, 200, 0.34)";
+  ofdmState.constellationSamples.forEach((symbol, index) => {
     const noisyRe = symbol.re + noiseSigma * gaussianNoise(index + 101);
     const noisyIm = symbol.im + noiseSigma * gaussianNoise(index + 211);
     ofdmCtx.beginPath();
-    ofdmCtx.arc(xFor(noisyRe), yFor(noisyIm), 4.5, 0, Math.PI * 2);
+    ofdmCtx.arc(xFor(noisyRe), yFor(noisyIm), 2.4, 0, Math.PI * 2);
     ofdmCtx.fill();
   });
 
@@ -834,7 +839,7 @@ function drawOfdmConstellation() {
   ofdmCtx.fillText("received", width - pad.right - 70, pad.top + 4);
   ofdmCtx.fillStyle = "rgba(167, 187, 183, 0.95)";
   ofdmCtx.font = "700 14px Inter, sans-serif";
-  ofdmCtx.fillText(`${ofdmState.dataSymbols.length} data symbols with AWGN noise`, pad.left, height - 18);
+  ofdmCtx.fillText(`${ofdmState.constellationSamples.length} received symbols with AWGN noise`, pad.left, height - 18);
 }
 
 function renderTable() {
