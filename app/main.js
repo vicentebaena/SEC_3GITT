@@ -15,6 +15,7 @@ const ofdmControls = {
   sampleRate: document.querySelector("#ofdmSampleRate"),
   cp: document.querySelector("#ofdmCp"),
   constellation: document.querySelector("#ofdmConstellation"),
+  hermitian: document.querySelector("#ofdmHermitian"),
 };
 
 const outputs = {
@@ -129,7 +130,7 @@ const ofdmHelp = {
   },
   occupied: {
     title: "Portadoras ocupadas",
-    text: "Solo estas subportadoras transportan datos. Deben ser menos que NFFT para dejar margen a portadoras nulas, guardas o DC si se desea. Al aumentar este número sube la tasa, pero también se ocupa más ancho de banda.",
+    text: "En modo normal el número es impar y la portadora de DC está ocupada. Con simetría hermítica pasa a ser par, DC queda nula y las portadoras positivas determinan sus conjugadas negativas.",
   },
   sampleRate: {
     title: "Frecuencia de muestreo",
@@ -142,6 +143,10 @@ const ofdmHelp = {
   constellation: {
     title: "Constelación",
     text: "La constelación fija cuántos bits transporta cada portadora ocupada: BPSK usa 1 bit, QPSK 2 bits y 16QAM 4 bits por símbolo de subportadora.",
+  },
+  hermitian: {
+    title: "Simetría hermítica",
+    text: "Activa X[-k] = conj(X[k]) para que la IFFT produzca una señal temporal real. Es útil en sistemas ópticos de intensidad, como LiFi. En este modo DC se deja nula y el número de portadoras ocupadas debe ser par.",
   },
   graph: {
     title: "Vista frecuencia/tiempo",
@@ -244,8 +249,17 @@ function bitsPerSymbol(constellation) {
   return { bpsk: 1, qpsk: 2, "16qam": 4 }[constellation] || 1;
 }
 
-function constellationPoint(index, constellation) {
-  if (constellation === "bpsk") return { re: index % 2 === 0 ? 1 : -1, im: 0 };
+function seededUnit(seed) {
+  const value = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+function randomIndex(seed, size) {
+  return Math.floor(seededUnit(seed) * size) % size;
+}
+
+function constellationPoint(seed, constellation) {
+  if (constellation === "bpsk") return { re: randomIndex(seed, 2) === 0 ? 1 : -1, im: 0 };
   if (constellation === "qpsk") {
     const points = [
       { re: 1, im: 1 },
@@ -253,11 +267,12 @@ function constellationPoint(index, constellation) {
       { re: -1, im: -1 },
       { re: 1, im: -1 },
     ];
-    const point = points[index % points.length];
+    const point = points[randomIndex(seed, points.length)];
     return { re: point.re / Math.SQRT2, im: point.im / Math.SQRT2 };
   }
   const levels = [-3, -1, 3, 1];
-  return { re: levels[index % 4] / Math.sqrt(10), im: levels[Math.floor(index / 4) % 4] / Math.sqrt(10) };
+  const point = randomIndex(seed, 16);
+  return { re: levels[point % 4] / Math.sqrt(10), im: levels[Math.floor(point / 4) % 4] / Math.sqrt(10) };
 }
 
 function sinc(x) {
@@ -265,37 +280,51 @@ function sinc(x) {
   return Math.sin(Math.PI * x) / (Math.PI * x);
 }
 
-function occupiedBins(nfft, occupied) {
+function occupiedBins(nfft, occupied, hermitian) {
   const bins = [];
-  const half = occupied / 2;
-  if (occupied % 2 === 0) {
+  if (hermitian) {
+    const half = occupied / 2;
     for (let k = -half; k < 0; k += 1) bins.push(k);
     for (let k = 1; k <= half; k += 1) bins.push(k);
-  } else {
-    for (let k = -Math.floor(half); k <= Math.floor(half); k += 1) bins.push(k);
+    return bins.slice(0, occupied);
   }
+  const half = Math.floor(occupied / 2);
+  for (let k = -half; k <= half; k += 1) bins.push(k);
   return bins.slice(0, occupied);
 }
 
 function simulateOfdm() {
   const nfft = Number(ofdmControls.nfft.value);
-  const maxOccupied = nfft - 2;
+  const hermitian = ofdmControls.hermitian.checked;
+  const maxOccupied = hermitian ? nfft - 2 : nfft - 1;
   ofdmControls.occupied.max = maxOccupied;
+  ofdmControls.occupied.min = hermitian ? 2 : 3;
+  ofdmControls.occupied.step = 2;
   let occupied = Math.min(Number(ofdmControls.occupied.value), maxOccupied);
-  if (occupied % 2 !== 0) occupied -= 1;
-  occupied = Math.max(2, occupied);
+  if (hermitian && occupied % 2 !== 0) occupied -= 1;
+  if (!hermitian && occupied % 2 === 0) occupied += 1;
+  occupied = Math.max(hermitian ? 2 : 3, Math.min(occupied, maxOccupied));
   ofdmControls.occupied.value = occupied;
   ofdmControls.cp.max = Math.floor(nfft / 2);
   const cp = Math.min(Number(ofdmControls.cp.value), Math.floor(nfft / 2));
   ofdmControls.cp.value = cp;
   const sampleRate = Math.max(1, Number(ofdmControls.sampleRate.value));
   const constellation = ofdmControls.constellation.value;
-  const bins = occupiedBins(nfft, occupied);
+  const bins = occupiedBins(nfft, occupied, hermitian);
   const spectrum = Array.from({ length: nfft }, () => ({ re: 0, im: 0 }));
-  bins.forEach((bin, index) => {
-    const arrayIndex = (bin + nfft) % nfft;
-    spectrum[arrayIndex] = constellationPoint(index, constellation);
-  });
+  if (hermitian) {
+    const positiveBins = bins.filter((bin) => bin > 0);
+    positiveBins.forEach((bin, index) => {
+      const point = constellationPoint(index + nfft + occupied, constellation);
+      spectrum[bin] = point;
+      spectrum[nfft - bin] = { re: point.re, im: -point.im };
+    });
+  } else {
+    bins.forEach((bin, index) => {
+      const arrayIndex = (bin + nfft) % nfft;
+      spectrum[arrayIndex] = constellationPoint(index + nfft + occupied, constellation);
+    });
+  }
   const useful = [];
   for (let n = 0; n < nfft; n += 1) {
     let re = 0;
@@ -312,8 +341,9 @@ function simulateOfdm() {
   const deltaF = sampleRate / nfft;
   const usefulTime = nfft / sampleRate;
   const symbolTime = (nfft + cp) / sampleRate;
-  const bitrate = (occupied * bitsPerSymbol(constellation)) / symbolTime;
-  ofdmState = { nfft, occupied, sampleRate, cp, constellation, bins, useful, waveform, deltaF, usefulTime, symbolTime, bitrate };
+  const independentCarriers = hermitian ? occupied / 2 : occupied;
+  const bitrate = (independentCarriers * bitsPerSymbol(constellation)) / symbolTime;
+  ofdmState = { nfft, occupied, sampleRate, cp, constellation, hermitian, bins, useful, waveform, deltaF, usefulTime, symbolTime, bitrate, independentCarriers };
   renderOfdm();
 }
 
@@ -631,7 +661,10 @@ function drawOfdmFrequency() {
   ofdmCtx.fillText(`Δf = ${formatFrequency(deltaF)}`, Math.min(centerA + 8, width - 170), pad.top + 16);
   ofdmCtx.fillStyle = "rgba(167, 187, 183, 0.95)";
   ofdmCtx.font = "700 14px Inter, sans-serif";
-  ofdmCtx.fillText(`${occupied} portadoras ocupadas centradas en DC`, pad.left, height - 18);
+  const occupancyText = ofdmState.hermitian
+    ? `${occupied} portadoras ocupadas, DC nula, ${ofdmState.independentCarriers} independientes`
+    : `${occupied} portadoras ocupadas incluyendo DC`;
+  ofdmCtx.fillText(occupancyText, pad.left, height - 18);
 }
 
 function drawOfdmTime() {
@@ -917,7 +950,9 @@ function renderOfdm() {
     ofdmView === "frequency" ? "Espectro de subportadoras OFDM" : "Símbolo OFDM en tiempo";
   ofdmOutputs.stageSubtitle.textContent =
     ofdmView === "frequency"
-      ? "Las sinc de las portadoras ocupadas tienen ceros en los centros de las portadoras vecinas."
+      ? ofdmState.hermitian
+        ? "Las portadoras positivas contienen datos y las negativas son sus conjugadas para obtener una señal temporal real."
+        : "Las sinc de las portadoras ocupadas tienen ceros en los centros de las portadoras vecinas; DC está ocupada."
       : "La parte inicial marcada copia el final del símbolo útil: es el prefijo cíclico.";
   if (activeLab === "ofdm") {
     if (ofdmView === "frequency") drawOfdmFrequency();

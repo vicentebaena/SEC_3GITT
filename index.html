@@ -180,8 +180,8 @@
 
               <label class="control" data-ofdm-help="occupied">
                 <span>Portadoras ocupadas</span>
-                <input id="ofdmOccupied" type="range" min="4" max="62" step="2" value="24" />
-                <output id="ofdmOccupiedOut">24</output>
+                <input id="ofdmOccupied" type="range" min="3" max="63" step="2" value="25" />
+                <output id="ofdmOccupiedOut">25</output>
               </label>
 
               <label class="control" data-ofdm-help="sampleRate">
@@ -203,6 +203,11 @@
                   <option value="qpsk" selected>QPSK</option>
                   <option value="16qam">16QAM</option>
                 </select>
+              </label>
+
+              <label class="control toggle-control" data-ofdm-help="hermitian">
+                <span>Simetría hermítica</span>
+                <input id="ofdmHermitian" type="checkbox" />
               </label>
             </div>
           </aside>
@@ -227,7 +232,7 @@
               <div><span>Δf</span><strong id="ofdmDeltaF">15.625 kHz</strong></div>
               <div><span>T útil</span><strong id="ofdmUsefulTime">64.000 µs</strong></div>
               <div><span>T símbolo</span><strong id="ofdmSymbolTime">80.000 µs</strong></div>
-              <div><span>Tasa bruta</span><strong id="ofdmBitrate">600.000 kb/s</strong></div>
+              <div><span>Tasa bruta</span><strong id="ofdmBitrate">625.000 kb/s</strong></div>
             </div>
           </section>
         </section>

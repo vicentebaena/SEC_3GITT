@@ -244,6 +244,15 @@ h2 {
   grid-template-columns: 1fr;
 }
 
+.toggle-control {
+  grid-template-columns: 1fr auto;
+}
+
+.toggle-control input {
+  width: 22px;
+  height: 22px;
+}
+
 .help-box {
   align-self: stretch;
   min-height: 0;
