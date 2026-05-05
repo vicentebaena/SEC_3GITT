@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+title: "SEC 3GITT Interactive Communications Labs"
+message: "If you use or adapt this educational material, please cite it as below."
+type: software
+authors:
+  - family-names: "Baena"
+    given-names: "Vicente"
+repository-code: "https://github.com/vicentebaena/SEC_3GITT"
+url: "https://vicentebaena.github.io/SEC_3GITT/"
+license: "MIT AND CC-BY-4.0"
+date-released: "2026-05-05"

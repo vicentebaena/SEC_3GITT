@@ -1,20 +1,20 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SEC 3GITT | Laboratorios de comunicaciones</title>
+    <title>SEC 3GITT | Communications Labs</title>
     <link rel="stylesheet" href="app/styles.css" />
   </head>
   <body>
     <main class="app-shell">
-      <section class="workspace" aria-label="Laboratorios interactivos de comunicaciones">
+      <section class="workspace" aria-label="Interactive communications labs">
         <header class="topbar">
           <div>
-            <p class="course">Sistemas Electrónicos para Comunicaciones</p>
-            <h1>Laboratorios interactivos</h1>
+            <p class="course">Electronic Systems for Communications</p>
+            <h1>Interactive labs</h1>
           </div>
-          <nav class="mode-tabs lab-tabs" aria-label="Laboratorio">
+          <nav class="mode-tabs lab-tabs" aria-label="Lab">
             <button class="tab lab-tab active" type="button" data-lab="cordic">CORDIC</button>
             <button class="tab lab-tab" type="button" data-lab="ofdm">OFDM</button>
           </nav>
@@ -22,63 +22,63 @@
 
         <div class="lab-view active" id="cordicLab">
         <section class="hero-grid">
-          <aside class="control-panel" aria-label="Controles de configuración">
+          <aside class="control-panel" aria-label="Configuration controls">
             <div class="panel-title">
-              <h2>Parámetros</h2>
-              <span id="runStatus">Modelo actualizado</span>
+              <h2>Parameters</h2>
+              <span id="runStatus">Model updated</span>
             </div>
 
             <div class="control-stack">
-              <div class="segmented-control" aria-label="Modo CORDIC">
-                <button class="tab cordic-tab active" type="button" data-mode="rotation">Rotación</button>
-                <button class="tab cordic-tab" type="button" data-mode="vectoring">Vectorización</button>
+              <div class="segmented-control" aria-label="CORDIC mode">
+                <button class="tab cordic-tab active" type="button" data-mode="rotation">Rotation</button>
+                <button class="tab cordic-tab" type="button" data-mode="vectoring">Vectoring</button>
               </div>
 
               <label class="control" data-help="mode">
-                <span>Modo CORDIC</span>
+                <span>CORDIC mode</span>
                 <select id="modeSelect">
-                  <option value="rotation">Rotación: gira un vector</option>
-                  <option value="vectoring">Vectorización: mide módulo y fase</option>
+                  <option value="rotation">Rotation: rotate a vector</option>
+                  <option value="vectoring">Vectoring: measure magnitude and phase</option>
                 </select>
               </label>
 
               <label class="control" data-help="iterations">
-                <span>Iteraciones</span>
+                <span>Iterations</span>
                 <input id="iterations" type="range" min="4" max="20" value="12" />
                 <output id="iterationsOut">12</output>
               </label>
 
               <label class="control" data-help="wordLength">
-                <span>Ancho de palabra</span>
+                <span>Word length</span>
                 <input id="wordLength" type="range" min="8" max="24" value="16" />
                 <output id="wordLengthOut">16 bits</output>
               </label>
 
               <label class="control" data-help="fractionalBits">
-                <span>Bits fraccionales</span>
+                <span>Fractional bits</span>
                 <input id="fractionalBits" type="range" min="4" max="20" value="13" />
                 <output id="fractionalBitsOut">13</output>
               </label>
 
               <label class="control" data-help="lutWidth">
-                <span>Ancho LUT atan</span>
+                <span>atan LUT width</span>
                 <input id="lutWidth" type="range" min="8" max="28" value="18" />
                 <output id="lutWidthOut">18 bits</output>
               </label>
 
               <label class="control" data-help="angle">
-                <span>Ángulo objetivo</span>
+                <span>Target angle</span>
                 <input id="angle" type="range" min="-89" max="89" value="38" />
                 <output id="angleOut">38°</output>
               </label>
 
               <div class="xy-grid">
                 <label class="control compact" data-help="inputX">
-                  <span>X inicial</span>
+                  <span>Initial X</span>
                   <input id="inputX" type="number" min="-1.75" max="1.75" step="0.05" value="0.85" />
                 </label>
                 <label class="control compact" data-help="inputY">
-                  <span>Y inicial</span>
+                  <span>Initial Y</span>
                   <input id="inputY" type="number" min="-1.75" max="1.75" step="0.05" value="0.25" />
                 </label>
               </div>
@@ -86,34 +86,34 @@
 
           </aside>
 
-          <section class="visual-stage" aria-label="Visualización de vectores">
+          <section class="visual-stage" aria-label="Vector visualization">
             <div class="stage-header">
               <div>
-                <h2 id="stageTitle">Rotación paso a paso</h2>
-                <p id="stageSubtitle">El vector se aproxima al ángulo indicado usando solo sumas, restas y desplazamientos.</p>
+                <h2 id="stageTitle">Step-by-step rotation</h2>
+                <p id="stageSubtitle">The vector approaches the requested angle using only additions, subtractions, and shifts.</p>
               </div>
-              <button id="playPause" class="icon-button" type="button" aria-label="Reproducir animación">▶</button>
+              <button id="playPause" class="icon-button" type="button" aria-label="Play animation">▶</button>
             </div>
             <div class="stage-body">
               <canvas id="cordicCanvas" width="900" height="620"></canvas>
               <article class="help-box" aria-live="polite">
-                <p class="help-kicker">Ayuda contextual</p>
-                <h3 id="helpTitle">Pasa por un control</h3>
-                <p id="helpText">Cada parámetro explica qué parte del circuito modifica y qué consecuencia tiene sobre precisión, coste hardware y convergencia.</p>
+                <p class="help-kicker">Context help</p>
+                <h3 id="helpTitle">Hover a control</h3>
+                <p id="helpText">Each parameter explains which part of the circuit it modifies and how it affects precision, hardware cost, and convergence.</p>
               </article>
             </div>
             <div class="inline-datapath">
               <div class="section-title">
-                <h2>CORDIC iterativo</h2>
-                <span>Buses en punto fijo</span>
+                <h2>Iterative CORDIC</h2>
+                <span>Fixed-point buses</span>
               </div>
-              <div id="busDiagram" class="bus-diagram" aria-label="Datapath iterativo con valores de buses"></div>
+              <div id="busDiagram" class="bus-diagram" aria-label="Iterative datapath with bus values"></div>
             </div>
             <div class="metric-strip">
-              <div><span>Iteración</span><strong id="metricIteration">0 / 12</strong></div>
-              <div><span>Error angular</span><strong id="metricAngleError">0°</strong></div>
-              <div><span>Error vectorial</span><strong id="metricVectorError">0</strong></div>
-              <div><span>Ganancia K</span><strong id="metricGain">1.0000</strong></div>
+              <div><span>Iteration</span><strong id="metricIteration">0 / 12</strong></div>
+              <div><span>Angular error</span><strong id="metricAngleError">0°</strong></div>
+              <div><span>Vector error</span><strong id="metricVectorError">0</strong></div>
+              <div><span>K gain</span><strong id="metricGain">1.0000</strong></div>
             </div>
           </section>
         </section>
@@ -121,16 +121,16 @@
         <section class="analysis-grid">
           <article class="analysis-panel chart-panel">
             <div class="section-title">
-              <h2>Error vs iteraciones</h2>
-              <span id="errorCaption">Escala logarítmica normalizada</span>
+              <h2>Error vs iterations</h2>
+              <span id="errorCaption">Normalized logarithmic scale</span>
             </div>
             <canvas id="errorCanvas" width="760" height="330"></canvas>
           </article>
 
           <article class="analysis-panel">
             <div class="section-title">
-              <h2>Registro interno</h2>
-              <span>x, y, z y dirección</span>
+              <h2>Internal register trace</h2>
+              <span>x, y, z, and direction</span>
             </div>
             <div class="table-wrap">
               <table>
@@ -152,8 +152,8 @@
 
         <section class="code-panel">
           <div class="section-title">
-            <h2>VHDL parametrizable</h2>
-            <span id="vhdlCaption">Fragmento didáctico ajustado a la configuración</span>
+            <h2>Parameterized VHDL</h2>
+            <span id="vhdlCaption">Teaching fragment adjusted to the current configuration</span>
           </div>
           <pre><code id="vhdlCode"></code></pre>
         </section>
@@ -161,10 +161,10 @@
 
         <div class="lab-view" id="ofdmLab" hidden>
         <section class="hero-grid">
-          <aside class="control-panel" aria-label="Controles OFDM">
+          <aside class="control-panel" aria-label="OFDM controls">
             <div class="panel-title">
-              <h2>Parámetros OFDM</h2>
-              <span id="ofdmRunStatus">Modelo actualizado</span>
+              <h2>OFDM parameters</h2>
+              <span id="ofdmRunStatus">Model updated</span>
             </div>
 
             <div class="control-stack">
@@ -178,25 +178,25 @@
               </label>
 
               <label class="control" data-ofdm-help="occupied">
-                <span>Portadoras ocupadas</span>
+                <span>Occupied carriers</span>
                 <input id="ofdmOccupied" type="range" min="3" max="63" step="2" value="25" />
                 <output id="ofdmOccupiedOut">25</output>
               </label>
 
               <label class="control" data-ofdm-help="sampleRate">
-                <span>Frecuencia de muestreo</span>
+                <span>Sample rate</span>
                 <input id="ofdmSampleRate" type="number" min="1000" step="1000" value="1000000" />
                 <output id="ofdmSampleRateOut">1.000 MHz</output>
               </label>
 
               <label class="control" data-ofdm-help="cp">
-                <span>Muestras de prefijo cíclico</span>
+                <span>Cyclic prefix samples</span>
                 <input id="ofdmCp" type="range" min="0" max="32" step="1" value="16" />
                 <output id="ofdmCpOut">16</output>
               </label>
 
               <label class="control" data-ofdm-help="constellation">
-                <span>Constelación</span>
+                <span>Constellation</span>
                 <select id="ofdmConstellation">
                   <option value="bpsk">BPSK</option>
                   <option value="qpsk" selected>QPSK</option>
@@ -211,37 +211,37 @@
               </label>
 
               <label class="control toggle-control" data-ofdm-help="hermitian">
-                <span>Simetría hermítica</span>
+                <span>Hermitian symmetry</span>
                 <input id="ofdmHermitian" type="checkbox" />
               </label>
             </div>
           </aside>
 
-          <section class="visual-stage ofdm-stage" aria-label="Visualización OFDM">
+          <section class="visual-stage ofdm-stage" aria-label="OFDM visualization">
             <div class="stage-header">
               <div>
-                <h2 id="ofdmStageTitle">Espectro de subportadoras OFDM</h2>
-                <p id="ofdmStageSubtitle">Cada portadora ocupada es ortogonal a las demás: sus ceros caen justo sobre los centros vecinos.</p>
+                <h2 id="ofdmStageTitle">OFDM subcarrier spectrum</h2>
+                <p id="ofdmStageSubtitle">Each occupied carrier is orthogonal to the others: its zeros fall exactly on neighboring carrier centers.</p>
               </div>
-              <div class="view-tabs" aria-label="Vista OFDM">
-                <button class="tab ofdm-view-tab active" type="button" data-ofdm-view="frequency">Frecuencia</button>
-                <button class="tab ofdm-view-tab" type="button" data-ofdm-view="time">Tiempo</button>
-                <button class="tab ofdm-view-tab" type="button" data-ofdm-view="constellation">Constelación</button>
+              <div class="view-tabs" aria-label="OFDM view">
+                <button class="tab ofdm-view-tab active" type="button" data-ofdm-view="frequency">Frequency</button>
+                <button class="tab ofdm-view-tab" type="button" data-ofdm-view="time">Time</button>
+                <button class="tab ofdm-view-tab" type="button" data-ofdm-view="constellation">Constellation</button>
               </div>
             </div>
             <div class="stage-body">
               <canvas id="ofdmCanvas" width="900" height="620" tabindex="0" data-ofdm-help="graph"></canvas>
               <article class="help-box" aria-live="polite">
-                <p class="help-kicker">Ayuda contextual</p>
+                <p class="help-kicker">Context help</p>
                 <h3 id="ofdmHelpTitle">OFDM</h3>
-                <p id="ofdmHelpText">Pasa por un control o por la gráfica para ver cómo cambia la separación entre portadoras, el prefijo cíclico y la tasa útil.</p>
+                <p id="ofdmHelpText">Hover a control or the plot to see how carrier spacing, cyclic prefix, SNR, and useful rate change.</p>
               </article>
             </div>
             <div class="metric-strip">
               <div><span>Δf</span><strong id="ofdmDeltaF">15.625 kHz</strong></div>
-              <div><span>T útil</span><strong id="ofdmUsefulTime">64.000 µs</strong></div>
-              <div><span>T símbolo</span><strong id="ofdmSymbolTime">80.000 µs</strong></div>
-              <div><span>Tasa bruta</span><strong id="ofdmBitrate">625.000 kb/s</strong></div>
+              <div><span>Useful T</span><strong id="ofdmUsefulTime">64.000 µs</strong></div>
+              <div><span>Symbol T</span><strong id="ofdmSymbolTime">80.000 µs</strong></div>
+              <div><span>Raw rate</span><strong id="ofdmBitrate">625.000 kb/s</strong></div>
             </div>
           </section>
         </section>

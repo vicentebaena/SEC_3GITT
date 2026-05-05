@@ -72,91 +72,91 @@ const ofdmCtx = ofdmCanvas.getContext("2d");
 
 const help = {
   mode: {
-    title: "Modo CORDIC",
-    text: "En rotación, el circuito consume un ángulo z y gira el vector de entrada. En vectorización, fuerza y hacia cero y acumula en z el ángulo del vector. Es la misma arquitectura con una regla de decisión distinta.",
+    title: "CORDIC mode",
+    text: "In rotation mode, the circuit consumes an angle z and rotates the input vector. In vectoring mode, it drives y toward zero and accumulates the vector angle in z. It is the same architecture with a different decision rule.",
   },
   iterations: {
-    title: "Número de iteraciones",
-    text: "Cada iteración añade una microrrotación atan(2^-i). Más iteraciones reducen el error angular, pero aumentan latencia, registros y consumo. La gráfica permite ver cuándo deja de compensar seguir iterando.",
+    title: "Number of iterations",
+    text: "Each iteration adds one atan(2^-i) microrotation. More iterations reduce angular error, but increase latency, registers, and power. The plot shows when extra iterations stop paying off.",
   },
   wordLength: {
-    title: "Ancho de palabra",
-    text: "Define el tamaño total de los registros x, y y z. Si es pequeño, aparecen saturación y cuantización gruesa; si crece, mejora la precisión a costa de más área hardware.",
+    title: "Word length",
+    text: "Defines the total size of the x, y, and z registers. If it is too small, saturation and coarse quantization appear; if it grows, precision improves at the cost of more hardware area.",
   },
   fractionalBits: {
-    title: "Bits fraccionales",
-    text: "Controla N en el formato de punto fijo (M,N). Muchos bits fraccionales reducen el escalón de cuantización, aunque dejan menos margen entero para señales grandes.",
+    title: "Fractional bits",
+    text: "Controls N in the fixed-point format (M,N). More fractional bits reduce the quantization step, but leave less integer headroom for large signals.",
   },
   lutWidth: {
-    title: "Ancho de la LUT atan",
-    text: "Define cuántos bits se usan para guardar los valores atan(2^-i). Si la LUT angular es estrecha, z acumula ángulos cuantizados y el error puede dejar de bajar aunque aumenten las iteraciones.",
+    title: "atan LUT width",
+    text: "Defines how many bits are used to store atan(2^-i) values. If the angular LUT is narrow, z accumulates quantized angles and the error may stop decreasing even when iterations increase.",
   },
   angle: {
-    title: "Ángulo objetivo",
-    text: "En modo rotación es el ángulo que se desea sintetizar. En modo vectorización se usa como referencia visual para comparar contra el ángulo realmente medido por el algoritmo.",
+    title: "Target angle",
+    text: "In rotation mode this is the angle to synthesize. In vectoring mode it is used as a visual reference against the angle actually measured by the algorithm.",
   },
   inputX: {
-    title: "Componente X inicial",
-    text: "Representa la entrada del registro x. En comunicaciones puede ser la componente en fase I de una muestra compleja.",
+    title: "Initial X component",
+    text: "Represents the x-register input. In communications, it can be the in-phase I component of a complex sample.",
   },
   inputY: {
-    title: "Componente Y inicial",
-    text: "Representa la entrada del registro y. En comunicaciones puede ser la componente en cuadratura de una muestra compleja. En vectorización, CORDIC intenta anularla.",
+    title: "Initial Y component",
+    text: "Represents the y-register input. In communications, it can be the quadrature component of a complex sample. In vectoring mode, CORDIC tries to drive it to zero.",
   },
   busData: {
-    title: "Bus de datos en punto fijo",
-    text: "Este bus transporta una componente x o y como entero con signo en complemento a dos. El formato se escribe como (M,N): M es el número total de bits del bus y N los bits fraccionales. El valor real se obtiene dividiendo el entero almacenado por 2^N.",
+    title: "Fixed-point data bus",
+    text: "This bus carries an x or y component as a signed two's-complement integer. The format is written as (M,N): M is the total number of bus bits and N is the number of fractional bits. The real value is obtained by dividing the stored integer by 2^N.",
   },
   busAngle: {
-    title: "Bus angular en punto fijo",
-    text: "El bus z usa su propio ancho, ANGLE_WIDTH, porque los ángulos no tienen por qué compartir precisión con x e y. También se expresa como (M,N): M bits totales para el acumulador angular y N bits fraccionales para la resolución en radianes.",
+    title: "Fixed-point angular bus",
+    text: "The z bus uses its own width, ANGLE_WIDTH, because angles do not need to share precision with x and y. It is also expressed as (M,N): M total bits for the angular accumulator and N fractional bits for radian resolution.",
   },
   busLut: {
-    title: "Entrada de la LUT atan",
-    text: "Este valor es atan(2^-i) cuantizado con el ancho de la LUT. En una arquitectura iterativa se lee una posición distinta de la tabla en cada ciclo y se suma o resta al acumulador z.",
+    title: "atan LUT entry",
+    text: "This value is atan(2^-i) quantized with the LUT width. In an iterative architecture, a different table entry is read every cycle and added to or subtracted from the z accumulator.",
   },
   busShift: {
-    title: "Desplazador aritmético",
-    text: "CORDIC evita multiplicadores usando desplazamientos. Desplazar x o y i posiciones equivale a multiplicar por 2^-i, manteniendo el signo en complemento a dos.",
+    title: "Arithmetic shifter",
+    text: "CORDIC avoids multipliers by using shifts. Shifting x or y by i positions is equivalent to multiplying by 2^-i while preserving the two's-complement sign.",
   },
   busDecision: {
-    title: "Decisión dᵢ",
-    text: "La señal dᵢ selecciona si la etapa suma o resta. En rotación depende del signo de zᵢ; en vectorización depende del signo de yᵢ para empujar la componente y hacia cero.",
+    title: "Decision dᵢ",
+    text: "The dᵢ signal selects whether the stage adds or subtracts. In rotation mode it depends on the sign of zᵢ; in vectoring mode it depends on the sign of yᵢ to drive y toward zero.",
   },
 };
 
 const ofdmHelp = {
   nfft: {
-    title: "Tamaño de la IFFT/FFT",
-    text: "NFFT fija el número de muestras del símbolo OFDM útil y el número total de posiciones de frecuencia disponibles. La separación entre subportadoras es Δf = Fs/NFFT.",
+    title: "IFFT/FFT size",
+    text: "NFFT sets the number of useful OFDM-symbol samples and the total number of available frequency bins. The subcarrier spacing is Δf = Fs/NFFT.",
   },
   occupied: {
-    title: "Portadoras ocupadas",
-    text: "En modo normal el número es impar y la portadora de DC está ocupada. Con simetría hermítica pasa a ser par, DC queda nula y las portadoras positivas determinan sus conjugadas negativas.",
+    title: "Occupied carriers",
+    text: "In normal mode the number is odd and the DC carrier is occupied. With Hermitian symmetry it becomes even, DC is left null, and positive carriers determine their negative conjugates.",
   },
   sampleRate: {
-    title: "Frecuencia de muestreo",
-    text: "Fs define la escala temporal y frecuencial. Con NFFT fijo, aumentar Fs aumenta Δf y reduce la duración del símbolo útil.",
+    title: "Sample rate",
+    text: "Fs defines the time and frequency scale. With fixed NFFT, increasing Fs increases Δf and reduces the useful symbol duration.",
   },
   cp: {
-    title: "Prefijo cíclico",
-    text: "El prefijo cíclico copia las últimas muestras del símbolo útil y las antepone. Ayuda frente a multitrayecto, pero reduce la tasa útil porque añade muestras sin nuevos bits.",
+    title: "Cyclic prefix",
+    text: "The cyclic prefix copies the last samples of the useful symbol and prepends them. It helps against multipath, but reduces the useful rate because it adds samples without new bits.",
   },
   constellation: {
-    title: "Constelación",
-    text: "La constelación fija cuántos bits transporta cada portadora ocupada: BPSK usa 1 bit, QPSK 2 bits y 16QAM 4 bits por símbolo de subportadora.",
+    title: "Constellation",
+    text: "The constellation sets how many bits each occupied carrier transports: BPSK uses 1 bit, QPSK 2 bits, and 16QAM 4 bits per subcarrier symbol.",
   },
   snr: {
     title: "SNR",
-    text: "Relación señal a ruido en dB usada en la vista de constelación recibida. Una SNR baja abre más la nube de puntos; una SNR alta hace que los puntos recibidos se agrupen cerca de la constelación ideal.",
+    text: "Signal-to-noise ratio in dB used in the received-constellation view. Low SNR opens the point cloud; high SNR makes received points cluster near the ideal constellation.",
   },
   hermitian: {
-    title: "Simetría hermítica",
-    text: "Activa X[-k] = conj(X[k]) para que la IFFT produzca una señal temporal real. Es útil en sistemas ópticos de intensidad, como LiFi. En este modo DC se deja nula y el número de portadoras ocupadas debe ser par.",
+    title: "Hermitian symmetry",
+    text: "Enables X[-k] = conj(X[k]) so the IFFT produces a real time-domain signal. It is useful in intensity-modulated optical systems, such as LiFi. In this mode DC is left null and the number of occupied carriers must be even.",
   },
   graph: {
-    title: "Vista frecuencia/tiempo/constelación",
-    text: "En frecuencia se muestran las sinc y Δf. En tiempo se representa el símbolo complejo con prefijo cíclico. En constelación se ven los símbolos recibidos con ruido y los puntos ideales.",
+    title: "Frequency/time/constellation view",
+    text: "The frequency view shows sinc curves and Δf. The time view shows the complex symbol with cyclic prefix. The constellation view shows noisy received symbols and ideal points.",
   },
 };
 
@@ -513,8 +513,8 @@ function drawReferenceCircle(ctx, center, radius) {
   ctx.font = "800 16px Inter, sans-serif";
   const labelX = Math.min(center.x + radius + 12, ctx.canvas.clientWidth - 142);
   const labelY = Math.max(36, center.y - 16);
-  ctx.fillText("circunferencia", labelX, labelY);
-  ctx.fillText("de módulo 1", labelX, labelY + 18);
+  ctx.fillText("unit circle", labelX, labelY);
+  ctx.fillText("magnitude 1", labelX, labelY + 18);
   ctx.restore();
 }
 
@@ -555,13 +555,13 @@ function drawVectorScene() {
   drawGrid(vectorCtx, width, height, center, units / 2);
   drawReferenceCircle(vectorCtx, center, units);
 
-  drawVector(vectorCtx, center, units, state.x0, state.y0, "#7cb7ff", "entrada", 3);
+  drawVector(vectorCtx, center, units, state.x0, state.y0, "#7cb7ff", "input", 3);
   if (state.mode === "rotation") {
     drawVector(vectorCtx, center, units, state.idealRotated.x, state.idealRotated.y, "#c8f560", "ideal", 3);
     drawVector(vectorCtx, center, units, row.x, row.y, "#ff6b5f", "CORDIC", 5);
   } else {
-    drawVector(vectorCtx, center, units, row.x * state.k, row.y * state.k, "#ff6b5f", "iteración", 5);
-    drawVector(vectorCtx, center, units, Math.hypot(state.x0, state.y0), 0, "#c8f560", "módulo", 3);
+    drawVector(vectorCtx, center, units, row.x * state.k, row.y * state.k, "#ff6b5f", "iteration", 5);
+    drawVector(vectorCtx, center, units, Math.hypot(state.x0, state.y0), 0, "#c8f560", "magnitude", 3);
   }
 
   const angle = state.mode === "rotation" ? state.targetRad - row.z : row.z;
@@ -626,7 +626,7 @@ function drawErrorChart() {
   errorCtx.fillStyle = "rgba(238, 248, 246, 0.86)";
   errorCtx.font = "700 14px Inter, sans-serif";
   errorCtx.fillText("error", 12, pad.top + 8);
-  errorCtx.fillText("iteración", width - 96, height - 12);
+  errorCtx.fillText("iteration", width - 96, height - 12);
 }
 
 function drawOfdmAxes(ctx, width, height, pad, xLabel, yLabel) {
@@ -656,7 +656,7 @@ function drawOfdmFrequency() {
   ofdmCtx.clearRect(0, 0, width, height);
   ofdmCtx.fillStyle = "#071013";
   ofdmCtx.fillRect(0, 0, width, height);
-  drawOfdmAxes(ofdmCtx, width, height, pad, "frecuencia", "|S(f)|");
+  drawOfdmAxes(ofdmCtx, width, height, pad, "frequency", "|S(f)|");
 
   const xFor = (bin) => pad.left + ((bin - minBin) / span) * w;
   const yFor = (amp) => pad.top + h - amp * h * 0.82;
@@ -710,8 +710,8 @@ function drawOfdmFrequency() {
   ofdmCtx.fillStyle = "rgba(167, 187, 183, 0.95)";
   ofdmCtx.font = "700 14px Inter, sans-serif";
   const occupancyText = ofdmState.hermitian
-    ? `${occupied} portadoras ocupadas, DC nula, ${ofdmState.independentCarriers} independientes`
-    : `${occupied} portadoras ocupadas incluyendo DC`;
+    ? `${occupied} occupied carriers, null DC, ${ofdmState.independentCarriers} independent`
+    : `${occupied} occupied carriers including DC`;
   ofdmCtx.fillText(occupancyText, pad.left, height - 18);
 }
 
@@ -728,13 +728,13 @@ function drawOfdmTime() {
   ofdmCtx.clearRect(0, 0, width, height);
   ofdmCtx.fillStyle = "#071013";
   ofdmCtx.fillRect(0, 0, width, height);
-  drawOfdmAxes(ofdmCtx, width, height, pad, "muestras", "I/Q");
+  drawOfdmAxes(ofdmCtx, width, height, pad, "samples", "I/Q");
   if (cp > 0) {
     ofdmCtx.fillStyle = "rgba(255, 200, 87, 0.14)";
     ofdmCtx.fillRect(pad.left, pad.top, xFor(cp) - pad.left, h);
     ofdmCtx.fillStyle = "#ffc857";
     ofdmCtx.font = "900 15px Inter, sans-serif";
-    ofdmCtx.fillText(`prefijo cíclico (${cp} muestras)`, pad.left + 10, pad.top + 24);
+    ofdmCtx.fillText(`cyclic prefix (${cp} samples)`, pad.left + 10, pad.top + 24);
   }
   ofdmCtx.strokeStyle = "rgba(238, 248, 246, 0.2)";
   ofdmCtx.beginPath();
@@ -743,8 +743,8 @@ function drawOfdmTime() {
   ofdmCtx.stroke();
 
   [
-    { key: "re", color: "#48d6c8", label: "parte real" },
-    { key: "im", color: "#ff6b5f", label: "parte imaginaria" },
+    { key: "re", color: "#48d6c8", label: "real part" },
+    { key: "im", color: "#ff6b5f", label: "imaginary part" },
   ].forEach((series) => {
     ofdmCtx.strokeStyle = series.color;
     ofdmCtx.lineWidth = 3;
@@ -770,10 +770,10 @@ function drawOfdmTime() {
   ofdmCtx.font = "900 15px Inter, sans-serif";
   ofdmCtx.fillText("real", width - pad.right - 132, pad.top + 22);
   ofdmCtx.fillStyle = "#ff6b5f";
-  ofdmCtx.fillText("imaginaria", width - pad.right - 84, pad.top + 22);
+  ofdmCtx.fillText("imaginary", width - pad.right - 84, pad.top + 22);
   ofdmCtx.fillStyle = "rgba(167, 187, 183, 0.95)";
   ofdmCtx.font = "700 14px Inter, sans-serif";
-  ofdmCtx.fillText(`${nfft} muestras útiles + ${cp} de prefijo`, pad.left, height - 18);
+  ofdmCtx.fillText(`${nfft} useful samples + ${cp} prefix samples`, pad.left, height - 18);
 }
 
 function drawOfdmConstellation() {
@@ -831,10 +831,10 @@ function drawOfdmConstellation() {
   ofdmCtx.fillStyle = "#ffc857";
   ofdmCtx.fillText("ideal", width - pad.right - 120, pad.top + 4);
   ofdmCtx.fillStyle = "#48d6c8";
-  ofdmCtx.fillText("recibida", width - pad.right - 70, pad.top + 4);
+  ofdmCtx.fillText("received", width - pad.right - 70, pad.top + 4);
   ofdmCtx.fillStyle = "rgba(167, 187, 183, 0.95)";
   ofdmCtx.font = "700 14px Inter, sans-serif";
-  ofdmCtx.fillText(`${ofdmState.dataSymbols.length} símbolos de datos con ruido AWGN`, pad.left, height - 18);
+  ofdmCtx.fillText(`${ofdmState.dataSymbols.length} data symbols with AWGN noise`, pad.left, height - 18);
 }
 
 function renderTable() {
@@ -909,7 +909,7 @@ function renderBusDiagram() {
     ${busChip(`x_${stage + 1}`, output.x.toFixed(5), outXInfo, outXInfo.q)}
     ${busChip(`y_${stage + 1}`, output.y.toFixed(5), outYInfo, outYInfo.q)}
     ${busChip(`z_${stage + 1}`, `${radToDeg(output.z).toFixed(4)}°`, outZInfo, outZInfo.q)}
-    <p class="datapath-note">El bloque representa una arquitectura iterativa: en cada ciclo se reutilizan sumadores, desplazadores y la entrada ${stage} de la LUT.</p>
+    <p class="datapath-note">This block represents an iterative architecture: adders, shifters, and LUT entry ${stage} are reused every cycle.</p>
   `;
 }
 
@@ -960,10 +960,10 @@ function renderVhdl() {
           z: "z(i) - atan_table(i)",
         };
   outputs.vhdlCode.textContent = `-- CORDIC ${modeName}
--- Configuracion actual:
---   Datos x/y: formato (${state.wordLength},${state.fractionalBits})
---   Angulos z/LUT atan: formato (${state.lutWidth},${state.lutWidth - 3})
---   Iteraciones: ${state.iterations}
+-- Current configuration:
+--   x/y data: format (${state.wordLength},${state.fractionalBits})
+--   z angles/atan LUT: format (${state.lutWidth},${state.lutWidth - 3})
+--   Iterations: ${state.iterations}
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -1035,13 +1035,13 @@ function renderLabels() {
   outputs.fractionalBits.textContent = state.fractionalBits;
   outputs.lutWidth.textContent = `${state.lutWidth} bits`;
   outputs.angle.textContent = `${state.angleDeg}°`;
-  outputs.runStatus.textContent = "Modelo actualizado";
+  outputs.runStatus.textContent = "Model updated";
   outputs.stageTitle.textContent =
-    state.mode === "rotation" ? "Rotación paso a paso" : "Vectorización paso a paso";
+    state.mode === "rotation" ? "Step-by-step rotation" : "Step-by-step vectoring";
   outputs.stageSubtitle.textContent =
     state.mode === "rotation"
-      ? "El vector se aproxima al ángulo indicado usando solo sumas, restas y desplazamientos."
-      : "El algoritmo empuja la componente y hacia cero y acumula el ángulo de la muestra compleja.";
+      ? "The vector approaches the requested angle using only additions, subtractions, and shifts."
+      : "The algorithm drives the y component toward zero and accumulates the complex-sample angle.";
   tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.mode === state.mode));
 }
 
@@ -1054,22 +1054,22 @@ function renderOfdm() {
   ofdmOutputs.usefulTime.textContent = formatTime(ofdmState.usefulTime);
   ofdmOutputs.symbolTime.textContent = formatTime(ofdmState.symbolTime);
   ofdmOutputs.bitrate.textContent = formatBitrate(ofdmState.bitrate);
-  ofdmOutputs.runStatus.textContent = "Modelo actualizado";
+  ofdmOutputs.runStatus.textContent = "Model updated";
   ofdmViewTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.ofdmView === ofdmView));
   ofdmOutputs.stageTitle.textContent =
     ofdmView === "frequency"
-      ? "Espectro de subportadoras OFDM"
+      ? "OFDM subcarrier spectrum"
       : ofdmView === "time"
-        ? "Símbolo OFDM en tiempo"
-        : "Constelación recibida";
+        ? "OFDM time-domain symbol"
+        : "Received constellation";
   ofdmOutputs.stageSubtitle.textContent =
     ofdmView === "frequency"
       ? ofdmState.hermitian
-        ? "Las portadoras positivas contienen datos y las negativas son sus conjugadas para obtener una señal temporal real."
-        : "Las sinc de las portadoras ocupadas tienen ceros en los centros de las portadoras vecinas; DC está ocupada."
+        ? "Positive carriers contain data and negative carriers are their conjugates to obtain a real time-domain signal."
+        : "The sinc curves of occupied carriers have zeros at neighboring carrier centers; DC is occupied."
       : ofdmView === "time"
-        ? "La parte inicial marcada copia el final del símbolo útil: es el prefijo cíclico."
-        : "Los puntos recibidos incorporan ruido AWGN según la SNR; las cruces marcan la constelación ideal.";
+        ? "The highlighted initial section copies the end of the useful symbol: it is the cyclic prefix."
+        : "Received points include AWGN according to the SNR; crosses mark the ideal constellation.";
   if (activeLab === "ofdm") {
     if (ofdmView === "frequency") drawOfdmFrequency();
     else if (ofdmView === "time") drawOfdmTime();

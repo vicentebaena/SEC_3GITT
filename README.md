@@ -1,30 +1,36 @@
 # SEC 3GITT
 
-App web educativa para explorar bloques digitales usados en comunicaciones.
+Educational web app for exploring digital building blocks used in communications.
 
-La app incluye un laboratorio visual de CORDIC con:
+The app includes a visual CORDIC lab with:
 
-- Modo rotación y modo vectorización.
-- Controles interactivos con ayuda contextual persistente.
-- Visualización geométrica de las iteraciones.
-- Tabla de registros internos `x`, `y`, `z` y decisión `d_i`.
-- Gráfica de error frente a iteraciones.
-- Fragmento VHDL didáctico parametrizado por la configuración seleccionada.
+- Rotation mode and vectoring mode.
+- Interactive controls with persistent contextual help.
+- Geometric visualization of the iterations.
+- Internal register trace for `x`, `y`, `z`, and decision `d_i`.
+- Error-vs-iterations plot.
+- Teaching-oriented VHDL fragment parameterized by the selected configuration.
 
-También incluye un laboratorio OFDM con:
+It also includes an OFDM lab with:
 
-- Control de `NFFT`, portadoras ocupadas, frecuencia de muestreo, prefijo cíclico, constelación, SNR y simetría hermítica.
-- Vista en frecuencia con las sinc de las subportadoras ocupadas y separación `Δf`.
-- Vista temporal del símbolo complejo con parte real, parte imaginaria y prefijo cíclico.
-- Scatterplot de constelación recibida con ruido y referencias ideales.
-- Cálculo de la tasa bruta de transferencia.
+- Controls for `NFFT`, occupied carriers, sample rate, cyclic prefix, constellation, SNR, and Hermitian symmetry.
+- Frequency view with the sinc curves of the occupied subcarriers and spacing `Δf`.
+- Time view of the complex OFDM symbol with real part, imaginary part, and cyclic prefix.
+- Received-constellation scatterplot with noise and ideal references.
+- Raw transfer-rate calculation.
 
-## Uso local
+## Local Use
 
-Abre `index.html` directamente en el navegador.
+Open `index.html` directly in a browser.
 
-## Publicación en GitHub Pages
+## GitHub Pages
 
-La app está publicada en:
+The app is published at:
 
 https://vicentebaena.github.io/SEC_3GITT/
+
+## License
+
+Code is licensed under the MIT License.
+
+Educational content, explanations, text, diagrams, and visualizations are licensed under Creative Commons Attribution 4.0 International (CC BY 4.0). Please cite Vicente Baena when reusing or adapting this material.
