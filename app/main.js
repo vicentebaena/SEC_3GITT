@@ -20,6 +20,50 @@ const ofdmControls = {
   hermitian: document.querySelector("#ofdmHermitian"),
 };
 
+const ddsControls = {
+  clockFrequency: document.querySelector("#ddsClockFrequency"),
+  phaseIncrement: document.querySelector("#ddsPhaseIncrement"),
+  accBits: document.querySelector("#ddsAccBits"),
+  droppedBits: document.querySelector("#ddsDroppedBits"),
+  romWordBits: document.querySelector("#ddsRomWordBits"),
+};
+
+const resetButtons = {
+  cordic: document.querySelector("#cordicReset"),
+  ofdm: document.querySelector("#ofdmReset"),
+  dds: document.querySelector("#ddsReset"),
+};
+
+const defaultControls = {
+  cordic: {
+    modeSelect: "rotation",
+    pipeline: false,
+    iterations: 12,
+    wordLength: 16,
+    fractionalBits: 13,
+    lutWidth: 18,
+    angle: 38,
+    inputX: 0.85,
+    inputY: 0.25,
+  },
+  ofdm: {
+    nfft: 64,
+    occupied: 25,
+    sampleRate: 1000000,
+    cp: 16,
+    constellation: "qpsk",
+    snr: 10,
+    hermitian: false,
+  },
+  dds: {
+    clockFrequency: 100,
+    phaseIncrement: 173,
+    accBits: 12,
+    droppedBits: 4,
+    romWordBits: 8,
+  },
+};
+
 const outputs = {
   iterations: document.querySelector("#iterationsOut"),
   wordLength: document.querySelector("#wordLengthOut"),
@@ -57,21 +101,44 @@ const ofdmOutputs = {
   stageSubtitle: document.querySelector("#ofdmStageSubtitle"),
 };
 
+const ddsOutputs = {
+  clockFrequency: document.querySelector("#ddsClockFrequencyOut"),
+  phaseIncrement: document.querySelector("#ddsPhaseIncrementOut"),
+  accBits: document.querySelector("#ddsAccBitsOut"),
+  droppedBits: document.querySelector("#ddsDroppedBitsOut"),
+  romWordBits: document.querySelector("#ddsRomWordBitsOut"),
+  metricFrequency: document.querySelector("#ddsMetricFrequency"),
+  metricTime: document.querySelector("#ddsMetricTime"),
+  metricAddress: document.querySelector("#ddsMetricAddress"),
+  metricOutput: document.querySelector("#ddsMetricOutput"),
+  helpTitle: document.querySelector("#ddsHelpTitle"),
+  helpText: document.querySelector("#ddsHelpText"),
+  runStatus: document.querySelector("#ddsRunStatus"),
+  stageTitle: document.querySelector("#ddsStageTitle"),
+  stageSubtitle: document.querySelector("#ddsStageSubtitle"),
+  vhdlCode: document.querySelector("#ddsVhdlCode"),
+  playPause: document.querySelector("#ddsPlayPause"),
+};
+
 const labTabs = [...document.querySelectorAll(".lab-tab")];
 const labViews = {
   cordic: document.querySelector("#cordicLab"),
   ofdm: document.querySelector("#ofdmLab"),
+  dds: document.querySelector("#ddsLab"),
 };
 const tabs = [...document.querySelectorAll(".cordic-tab")];
 const cordicViewTabs = [...document.querySelectorAll(".cordic-view-tab")];
 const ofdmViewTabs = [...document.querySelectorAll(".ofdm-view-tab")];
+const ddsViewTabs = [...document.querySelectorAll(".dds-view-tab")];
 const angleControl = document.querySelector('[data-help="angle"]');
 const vectorCanvas = document.querySelector("#cordicCanvas");
 const errorCanvas = document.querySelector("#errorCanvas");
 const ofdmCanvas = document.querySelector("#ofdmCanvas");
+const ddsCanvas = document.querySelector("#ddsCanvas");
 const vectorCtx = vectorCanvas.getContext("2d");
 const errorCtx = errorCanvas.getContext("2d");
 const ofdmCtx = ofdmCanvas.getContext("2d");
+const ddsCtx = ddsCanvas.getContext("2d");
 
 const help = {
   mode: {
@@ -187,6 +254,65 @@ const ofdmHelp = {
   },
 };
 
+const ddsHelp = {
+  clockFrequency: {
+    title: "Clock frequency",
+    text: "Sampling clock that drives the DDS, entered in MHz. It converts the normalized tuning word into a real output frequency: fout = fclk * phase_increment / 2^M.",
+  },
+  phaseIncrement: {
+    title: "Phase increment",
+    text: "Unsigned tuning word added to the phase accumulator every clock cycle. A larger increment makes the accumulator wrap faster, so the output frequency increases according to fout = fclk * increment / 2^M.",
+  },
+  accBits: {
+    title: "Accumulator bits",
+    text: "Total number of bits in the phase accumulator. It sets the phase resolution and the frequency tuning granularity: one LSB corresponds to 1/2^M of a full cycle.",
+  },
+  droppedBits: {
+    title: "Quantizer dropped bits",
+    text: "Number of least-significant accumulator bits discarded before the ROM address. Dropping bits reduces ROM size, but introduces phase truncation and deterministic spurs.",
+  },
+  romWordBits: {
+    title: "ROM word width",
+    text: "Signed output width of the cosine ROM. More bits reduce amplitude quantization noise; fewer bits make the waveform visibly stair-stepped.",
+  },
+  graph: {
+    title: "DDS view",
+    text: "Diagram view shows the value at each block for the current clock cycle. Output vs time shows the generated cosine samples. Spectrum view uses a radix-2 FFT over an integer number of exact accumulator periods.",
+  },
+  diagramView: {
+    title: "Diagram view",
+    text: "Shows the DDS datapath for the current clock cycle: tuning word, phase accumulator, truncated ROM address, cosine lookup, and signed output sample.",
+  },
+  timeView: {
+    title: "Time view",
+    text: "Plots the generated cosine samples in time, limited to at most five sine periods so the waveform stays readable.",
+  },
+  spectrumView: {
+    title: "Spectrum view",
+    text: "Computes a coherent FFT using an integer number of exact accumulator periods, so the main tone lands on a bin and quantization spurs can be inspected.",
+  },
+  sample: {
+    title: "Current time",
+    text: "Current clock-cycle time, computed from the sample index and clock frequency. Each tick advances by one clock period.",
+  },
+  frequency: {
+    title: "Output frequency",
+    text: "Generated cosine frequency in hertz. It depends on the clock frequency, accumulator width, and phase increment.",
+  },
+  phase: {
+    title: "Phase word",
+    text: "Current accumulator content after modular addition. It represents phase over one full cycle: 0 maps to 0 degrees and 2^M wraps back to 0.",
+  },
+  address: {
+    title: "ROM address",
+    text: "The most-significant phase bits after the quantizer. These bits select one cosine value from the lookup table.",
+  },
+  output: {
+    title: "DDS output",
+    text: "Signed fixed-width cosine sample read from the ROM. It is the quantized amplitude that would leave the DDS block.",
+  },
+};
+
 let state = {};
 let frames = [];
 let activeStep = 0;
@@ -195,8 +321,13 @@ let lastFrame = 0;
 let audioContext = null;
 let activeLab = "cordic";
 let ofdmState = {};
+let ddsState = {};
 let cordicView = "vector";
 let ofdmView = "frequency";
+let ddsView = "diagram";
+let ddsStep = 0;
+let ddsPlaying = false;
+let ddsLastFrame = 0;
 const animationIntervalMs = 1450;
 
 function q(value, fractionalBits, wordLength) {
@@ -251,6 +382,62 @@ function fixedInfo(value, fractionalBits, width) {
     binary: binary.replace(/(.{4})/g, "$1 ").trim(),
     q: `(${width},${fractionalBits})`,
   };
+}
+
+function unsignedHex(value, width) {
+  const hexDigits = Math.ceil(width / 4);
+  return `0x${Number(value).toString(16).toUpperCase().padStart(hexDigits, "0")}`;
+}
+
+function signedHex(value, width) {
+  const modulo = 2 ** width;
+  const unsigned = value < 0 ? modulo + value : value;
+  return unsignedHex(unsigned, width);
+}
+
+function gcd(a, b) {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y !== 0) {
+    const next = x % y;
+    x = y;
+    y = next;
+  }
+  return x;
+}
+
+function fftMagnitudes(realSamples) {
+  const n = realSamples.length;
+  const re = [...realSamples];
+  const im = Array.from({ length: n }, () => 0);
+  for (let i = 1, j = 0; i < n; i += 1) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) {
+      [re[i], re[j]] = [re[j], re[i]];
+      [im[i], im[j]] = [im[j], im[i]];
+    }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const angleStep = (-2 * Math.PI) / len;
+    const half = len >> 1;
+    for (let start = 0; start < n; start += len) {
+      for (let k = 0; k < half; k += 1) {
+        const wr = Math.cos(angleStep * k);
+        const wi = Math.sin(angleStep * k);
+        const even = start + k;
+        const odd = even + half;
+        const tr = wr * re[odd] - wi * im[odd];
+        const ti = wr * im[odd] + wi * re[odd];
+        re[odd] = re[even] - tr;
+        im[odd] = im[even] - ti;
+        re[even] += tr;
+        im[even] += ti;
+      }
+    }
+  }
+  return Array.from({ length: n / 2 }, (_, index) => Math.hypot(re[index], im[index]) / n);
 }
 
 function gain(iterations) {
@@ -426,6 +613,81 @@ function simulateOfdm() {
     independentCarriers,
   };
   renderOfdm();
+}
+
+function simulateDds() {
+  const clockFrequencyMhz = Math.max(1, Number(ddsControls.clockFrequency.value));
+  ddsControls.clockFrequency.value = clockFrequencyMhz;
+  const clockFrequency = clockFrequencyMhz * 1e6;
+  const accBits = Math.max(8, Math.min(15, Number(ddsControls.accBits.value)));
+  ddsControls.accBits.value = accBits;
+  const minDropped = Math.max(0, accBits - 10);
+  const maxDropped = Math.max(minDropped, accBits - 2);
+  ddsControls.droppedBits.min = minDropped;
+  ddsControls.droppedBits.max = maxDropped;
+  let droppedBits = Number(ddsControls.droppedBits.value);
+  droppedBits = Math.max(minDropped, Math.min(droppedBits, maxDropped));
+  ddsControls.droppedBits.value = droppedBits;
+
+  const modulus = 2 ** accBits;
+  const maxPeriodSamples = 8192;
+  const minPhaseIncrement = Math.ceil(modulus / maxPeriodSamples);
+  ddsControls.phaseIncrement.min = minPhaseIncrement;
+  ddsControls.phaseIncrement.max = modulus - 1;
+  let phaseIncrement = Math.round(Number(ddsControls.phaseIncrement.value));
+  phaseIncrement = Math.max(minPhaseIncrement, Math.min(phaseIncrement, modulus - 1));
+  ddsControls.phaseIncrement.value = phaseIncrement;
+
+  const addressBits = accBits - droppedBits;
+  const romSize = 2 ** addressBits;
+  const romWordBits = Math.max(4, Math.min(10, Number(ddsControls.romWordBits.value)));
+  ddsControls.romWordBits.value = romWordBits;
+  const periodSamples = modulus / gcd(modulus, phaseIncrement);
+  const sampleCount = Math.max(128, periodSamples);
+  const normalizedFrequency = phaseIncrement / modulus;
+  const outputFrequency = clockFrequency * normalizedFrequency;
+  const clockPeriod = 1 / clockFrequency;
+  const amplitudeMax = 2 ** (romWordBits - 1) - 1;
+  const amplitudeMin = -(2 ** (romWordBits - 1));
+  const samples = [];
+
+  for (let n = 0; n < sampleCount; n += 1) {
+    const phase = (n * phaseIncrement) % modulus;
+    const address = Math.floor(phase / 2 ** droppedBits);
+    const ideal = Math.cos((2 * Math.PI * address) / romSize);
+    const output = Math.max(amplitudeMin, Math.min(amplitudeMax, Math.round(ideal * amplitudeMax)));
+    samples.push({
+      n,
+      phase,
+      address,
+      discarded: phase % 2 ** droppedBits,
+      output,
+      normalized: output / amplitudeMax,
+    });
+  }
+
+  ddsState = {
+    phaseIncrement,
+    clockFrequencyMhz,
+    clockFrequency,
+    clockPeriod,
+    outputFrequency,
+    accBits,
+    droppedBits,
+    addressBits,
+    romSize,
+    romWordBits,
+    sampleCount,
+    periodSamples,
+    maxPeriodSamples,
+    minPhaseIncrement,
+    amplitudeMax,
+    amplitudeMin,
+    samples,
+    normalizedFrequency,
+  };
+  ddsStep = Math.min(ddsStep, sampleCount - 1);
+  renderDds();
 }
 
 function simulate() {
@@ -1016,6 +1278,289 @@ function drawOfdmConstellation() {
   ofdmCtx.fillText(`${ofdmState.constellationSamples.length} received symbols with AWGN noise`, pad.left, height - 18);
 }
 
+function drawDdsBlock(ctx, x, y, width, height, title, value, detail, color = "#48d6c8") {
+  ctx.fillStyle = "rgba(255, 255, 255, 0.055)";
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.rect(x, y, width, height);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "rgba(167, 187, 183, 0.95)";
+  ctx.font = "800 12px Inter, sans-serif";
+  ctx.fillText(title.toUpperCase(), x + 14, y + 22);
+  ctx.fillStyle = "#eef8f6";
+  ctx.font = "900 22px Inter, sans-serif";
+  ctx.fillText(value, x + 14, y + 54);
+  ctx.fillStyle = "#c8f560";
+  ctx.font = "750 13px Inter, sans-serif";
+  ctx.fillText(detail, x + 14, y + 78);
+}
+
+function drawDdsArrow(ctx, fromX, fromY, toX, toY) {
+  ctx.strokeStyle = "rgba(238, 248, 246, 0.58)";
+  ctx.fillStyle = "rgba(238, 248, 246, 0.76)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(fromX, fromY);
+  ctx.lineTo(toX, toY);
+  ctx.stroke();
+  const angle = Math.atan2(toY - fromY, toX - fromX);
+  ctx.beginPath();
+  ctx.moveTo(toX, toY);
+  ctx.lineTo(toX - 12 * Math.cos(angle - 0.45), toY - 12 * Math.sin(angle - 0.45));
+  ctx.lineTo(toX - 12 * Math.cos(angle + 0.45), toY - 12 * Math.sin(angle + 0.45));
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawDdsDiagram() {
+  const { width, height } = resizeCanvas(ddsCanvas);
+  const row = ddsState.samples[ddsStep] || ddsState.samples[0];
+  const blockW = Math.min(150, Math.max(116, width * 0.15));
+  const blockH = 96;
+  const gap = Math.max(18, (width - 68 - blockW * 5) / 4);
+  const startX = 34;
+  const y = height * 0.37;
+  const blocks = Array.from({ length: 5 }, (_, index) => ({
+    x: startX + index * (blockW + gap),
+    y,
+  }));
+
+  ddsCtx.clearRect(0, 0, width, height);
+  ddsCtx.fillStyle = "#071013";
+  ddsCtx.fillRect(0, 0, width, height);
+
+  ddsCtx.fillStyle = "rgba(238, 248, 246, 0.92)";
+  ddsCtx.font = "900 26px Inter, sans-serif";
+  ddsCtx.fillText("Direct Digital Synthesizer", 34, 44);
+  ddsCtx.fillStyle = "rgba(167, 187, 183, 0.95)";
+  ddsCtx.font = "750 15px Inter, sans-serif";
+  ddsCtx.fillText(
+    `cycle ${row.n} · t = ${formatTime(row.n * ddsState.clockPeriod)} · fout = ${formatFrequency(ddsState.outputFrequency)}`,
+    34,
+    72,
+  );
+
+  drawDdsBlock(
+    ddsCtx,
+    blocks[0].x,
+    y,
+    blockW,
+    blockH,
+    "input",
+    unsignedHex(ddsState.phaseIncrement, ddsState.accBits),
+    `increment = ${ddsState.phaseIncrement}`,
+    "#7cb7ff",
+  );
+  drawDdsBlock(
+    ddsCtx,
+    blocks[1].x,
+    y,
+    blockW,
+    blockH,
+    "accumulator",
+    unsignedHex(row.phase, ddsState.accBits),
+    `${ddsState.accBits}-bit phase`,
+    "#48d6c8",
+  );
+  drawDdsBlock(
+    ddsCtx,
+    blocks[2].x,
+    y,
+    blockW,
+    blockH,
+    "quantizer",
+    unsignedHex(row.address, ddsState.addressBits),
+    `drops ${ddsState.droppedBits} LSBs`,
+    "#ffc857",
+  );
+  drawDdsBlock(
+    ddsCtx,
+    blocks[3].x,
+    y,
+    blockW,
+    blockH,
+    "cos ROM",
+    `cos[${row.address}]`,
+    `${ddsState.romSize} words`,
+    "#c8f560",
+  );
+  drawDdsBlock(
+    ddsCtx,
+    blocks[4].x,
+    y,
+    blockW,
+    blockH,
+    "output",
+    signedHex(row.output, ddsState.romWordBits),
+    `${row.output} signed`,
+    "#ff6b5f",
+  );
+
+  for (let i = 0; i < 4; i += 1) {
+    drawDdsArrow(
+      ddsCtx,
+      blocks[i].x + blockW + 4,
+      y + blockH / 2,
+      blocks[i + 1].x - 6,
+      y + blockH / 2,
+    );
+  }
+
+  const phaseBarX = 66;
+  const phaseBarY = y + blockH + 78;
+  const phaseBarW = width - 132;
+  const phaseBarH = 24;
+  const keptW = phaseBarW * (ddsState.addressBits / ddsState.accBits);
+  ddsCtx.fillStyle = "rgba(255, 255, 255, 0.06)";
+  ddsCtx.fillRect(phaseBarX, phaseBarY, phaseBarW, phaseBarH);
+  ddsCtx.fillStyle = "rgba(72, 214, 200, 0.42)";
+  ddsCtx.fillRect(phaseBarX, phaseBarY, keptW, phaseBarH);
+  ddsCtx.fillStyle = "rgba(255, 200, 87, 0.35)";
+  ddsCtx.fillRect(phaseBarX + keptW, phaseBarY, phaseBarW - keptW, phaseBarH);
+  ddsCtx.strokeStyle = "rgba(238, 248, 246, 0.32)";
+  ddsCtx.strokeRect(phaseBarX, phaseBarY, phaseBarW, phaseBarH);
+  ddsCtx.fillStyle = "#48d6c8";
+  ddsCtx.font = "900 13px Inter, sans-serif";
+  ddsCtx.fillText(
+    `${ddsState.addressBits} address MSBs = ${unsignedHex(row.address, ddsState.addressBits)} (${row.address})`,
+    phaseBarX,
+    phaseBarY - 10,
+  );
+  ddsCtx.fillStyle = "#ffc857";
+  ddsCtx.fillText(`${ddsState.droppedBits} discarded LSBs = ${row.discarded}`, phaseBarX + keptW + 12, phaseBarY - 10);
+}
+
+function drawDdsTime() {
+  const { width, height } = resizeCanvas(ddsCanvas);
+  const pad = { left: 60, right: 30, top: 42, bottom: 58 };
+  const w = width - pad.left - pad.right;
+  const h = height - pad.top - pad.bottom;
+  const sinePeriodSamples = 1 / ddsState.normalizedFrequency;
+  const displayCount = Math.min(ddsState.samples.length, Math.max(2, Math.ceil(sinePeriodSamples * 5)));
+  const samples = ddsState.samples.slice(0, displayCount);
+  const visibleStep = Math.min(ddsStep, samples.length - 1);
+  const totalTime = (samples.length - 1) * ddsState.clockPeriod;
+  const xFor = (idx) => pad.left + (w * idx) / Math.max(1, samples.length - 1);
+  const yFor = (value) => pad.top + h / 2 - value * h * 0.42;
+  ddsCtx.clearRect(0, 0, width, height);
+  ddsCtx.fillStyle = "#071013";
+  ddsCtx.fillRect(0, 0, width, height);
+  ddsCtx.strokeStyle = "rgba(199, 231, 226, 0.14)";
+  ddsCtx.lineWidth = 1;
+  for (let i = 0; i <= 4; i += 1) {
+    const y = pad.top + (h * i) / 4;
+    ddsCtx.beginPath();
+    ddsCtx.moveTo(pad.left, y);
+    ddsCtx.lineTo(width - pad.right, y);
+    ddsCtx.stroke();
+  }
+  ddsCtx.strokeStyle = "rgba(238, 248, 246, 0.34)";
+  ddsCtx.beginPath();
+  ddsCtx.moveTo(pad.left, pad.top);
+  ddsCtx.lineTo(pad.left, height - pad.bottom);
+  ddsCtx.lineTo(width - pad.right, height - pad.bottom);
+  ddsCtx.stroke();
+  ddsCtx.strokeStyle = "#48d6c8";
+  ddsCtx.lineWidth = 4;
+  ddsCtx.beginPath();
+  samples.forEach((sample, idx) => {
+    const x = xFor(idx);
+    const y = yFor(sample.normalized);
+    if (idx === 0) ddsCtx.moveTo(x, y);
+    else ddsCtx.lineTo(x, y);
+  });
+  ddsCtx.stroke();
+  const markerStep = Math.max(1, Math.ceil(samples.length / 512));
+  samples.forEach((sample, idx) => {
+    if (idx % markerStep !== 0 && idx !== ddsStep) return;
+    ddsCtx.fillStyle = idx === visibleStep ? "#ffc857" : "rgba(200, 245, 96, 0.55)";
+    ddsCtx.beginPath();
+    ddsCtx.arc(xFor(idx), yFor(sample.normalized), idx === visibleStep ? 7 : 3.5, 0, Math.PI * 2);
+    ddsCtx.fill();
+  });
+  const row = samples[visibleStep] || samples[0];
+  ddsCtx.font = "750 15px Inter, sans-serif";
+  ddsCtx.fillStyle = "#ffc857";
+  ddsCtx.fillText(`t = ${formatTime(row.n * ddsState.clockPeriod)} · sample ${row.n}: ${row.output}`, pad.left, height - 20);
+  ddsCtx.fillStyle = "rgba(167, 187, 183, 0.95)";
+  ddsCtx.fillText(`time (${formatTime(totalTime)}, max 5 sine periods)`, width - 286, height - 20);
+  ddsCtx.fillText("output", 12, pad.top - 16);
+}
+
+function drawDdsSpectrum() {
+  const { width, height } = resizeCanvas(ddsCanvas);
+  const pad = { left: 64, right: 30, top: 42, bottom: 58 };
+  const w = width - pad.left - pad.right;
+  const h = height - pad.top - pad.bottom;
+  const samples = ddsState.samples.map((sample) => sample.normalized);
+  const magnitudes = fftMagnitudes(samples);
+  const peak = Math.max(...magnitudes, 1e-12);
+  const dbValues = magnitudes.map((mag) => 20 * Math.log10(Math.max(mag / peak, 1e-6)));
+  const floorDb = -90;
+  const xFor = (idx) => pad.left + (w * idx) / Math.max(1, dbValues.length - 1);
+  const yFor = (db) => pad.top + h - ((Math.max(floorDb, db) - floorDb) / -floorDb) * h;
+  const mainBin = dbValues.reduce((best, value, idx) => (value > dbValues[best] ? idx : best), 1);
+  const maxVisibleBins = 256;
+  const binStep = Math.max(1, Math.ceil(dbValues.length / maxVisibleBins));
+  const strongestBins = new Set(
+    dbValues
+      .map((db, idx) => ({ db, idx }))
+      .filter((bin) => bin.idx !== 0 && bin.idx !== mainBin)
+      .sort((a, b) => b.db - a.db)
+      .slice(0, 96)
+      .map((bin) => bin.idx),
+  );
+
+  ddsCtx.clearRect(0, 0, width, height);
+  ddsCtx.fillStyle = "#071013";
+  ddsCtx.fillRect(0, 0, width, height);
+
+  ddsCtx.strokeStyle = "rgba(199, 231, 226, 0.14)";
+  ddsCtx.lineWidth = 1;
+  ddsCtx.font = "700 12px Inter, sans-serif";
+  ddsCtx.fillStyle = "rgba(167, 187, 183, 0.92)";
+  for (let db = 0; db >= floorDb; db -= 15) {
+    const y = yFor(db);
+    ddsCtx.beginPath();
+    ddsCtx.moveTo(pad.left, y);
+    ddsCtx.lineTo(width - pad.right, y);
+    ddsCtx.stroke();
+    ddsCtx.fillText(`${db} dB`, 14, y + 4);
+  }
+
+  ddsCtx.strokeStyle = "rgba(238, 248, 246, 0.34)";
+  ddsCtx.beginPath();
+  ddsCtx.moveTo(pad.left, pad.top);
+  ddsCtx.lineTo(pad.left, height - pad.bottom);
+  ddsCtx.lineTo(width - pad.right, height - pad.bottom);
+  ddsCtx.stroke();
+
+  dbValues.forEach((db, idx) => {
+    if (idx % binStep !== 0 && idx !== mainBin && !strongestBins.has(idx)) return;
+    const x = xFor(idx);
+    const y = yFor(db);
+    ddsCtx.strokeStyle = idx === mainBin ? "#ffc857" : strongestBins.has(idx) ? "#ff6b5f" : "#48d6c8";
+    ddsCtx.lineWidth = idx === mainBin ? 4 : strongestBins.has(idx) ? 3 : 1.5;
+    ddsCtx.beginPath();
+    ddsCtx.moveTo(x, height - pad.bottom);
+    ddsCtx.lineTo(x, y);
+    ddsCtx.stroke();
+  });
+
+  ddsCtx.font = "750 15px Inter, sans-serif";
+  ddsCtx.fillStyle = "#ffc857";
+  ddsCtx.fillText(
+    `FFT ${samples.length} · exact period = ${ddsState.periodSamples} samples · Δf = ${formatFrequency(ddsState.clockFrequency / samples.length)}`,
+    pad.left,
+    height - 20,
+  );
+  ddsCtx.fillStyle = "rgba(167, 187, 183, 0.95)";
+  ddsCtx.fillText("frequency", width - 110, height - 20);
+  ddsCtx.fillText("relative magnitude", 12, pad.top - 16);
+}
+
 function renderTable() {
   outputs.iterationTable.innerHTML = state.rows
     .map(
@@ -1385,6 +1930,108 @@ ${cellVhdl}
 ${state.architecture === "pipeline" ? pipelineVhdl : iterativeVhdl}`;
 }
 
+function renderDdsVhdl() {
+  const sampleEntries = Array.from({ length: ddsState.romSize }, (_, address) => {
+    const value = Math.max(
+      ddsState.amplitudeMin,
+      Math.min(
+        ddsState.amplitudeMax,
+        Math.round(Math.cos((2 * Math.PI * address) / ddsState.romSize) * ddsState.amplitudeMax),
+      ),
+    );
+    return `      ${address} => to_signed(${value}, ROM_WORD_BITS)`;
+  });
+  ddsOutputs.vhdlCode.textContent = `-- Direct Digital Synthesizer
+-- Current configuration:
+--   Clock frequency: ${formatFrequency(ddsState.clockFrequency)}
+--   Output frequency: ${formatFrequency(ddsState.outputFrequency)}
+--   Phase increment: ${ddsState.phaseIncrement}
+--   Accumulator width: ${ddsState.accBits} bits
+--   Quantizer dropped bits: ${ddsState.droppedBits}
+--   ROM address width: ${ddsState.addressBits} bits
+--   ROM word width: ${ddsState.romWordBits} bits
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity dds_basic is
+  generic (
+    ACC_BITS      : positive := ${ddsState.accBits};
+    PHASE_DROP    : natural  := ${ddsState.droppedBits};
+    ROM_WORD_BITS : positive := ${ddsState.romWordBits};
+    PHASE_INC     : natural  := ${ddsState.phaseIncrement}
+  );
+  port (
+    clk      : in  std_logic;
+    rst      : in  std_logic;
+    enable   : in  std_logic;
+    phase_o  : out unsigned(ACC_BITS-1 downto 0);
+    addr_o   : out unsigned(ACC_BITS-PHASE_DROP-1 downto 0);
+    sample_o : out signed(ROM_WORD_BITS-1 downto 0)
+  );
+end entity;
+
+architecture rtl of dds_basic is
+  constant ADDR_BITS : positive := ACC_BITS - PHASE_DROP;
+  subtype rom_word_t is signed(ROM_WORD_BITS-1 downto 0);
+  type rom_t is array (0 to 2**ADDR_BITS - 1) of rom_word_t;
+
+  -- One full cosine period quantized to ROM_WORD_BITS.
+  constant COS_ROM : rom_t := (
+${sampleEntries.join(",\n")}
+  );
+
+  signal phase_acc : unsigned(ACC_BITS-1 downto 0) := (others => '0');
+  signal rom_addr  : unsigned(ADDR_BITS-1 downto 0);
+begin
+  process(clk)
+  begin
+    if rising_edge(clk) then
+      if rst = '1' then
+        phase_acc <= (others => '0');
+      elsif enable = '1' then
+        phase_acc <= phase_acc + to_unsigned(PHASE_INC, ACC_BITS);
+      end if;
+    end if;
+  end process;
+
+  rom_addr <= phase_acc(ACC_BITS-1 downto PHASE_DROP);
+  sample_o <= COS_ROM(to_integer(rom_addr));
+  phase_o <= phase_acc;
+  addr_o <= rom_addr;
+end architecture;`;
+}
+
+function renderDds() {
+  const row = ddsState.samples[ddsStep] || ddsState.samples[0];
+  ddsOutputs.clockFrequency.textContent = `${ddsState.clockFrequencyMhz.toFixed(3)} MHz`;
+  ddsOutputs.phaseIncrement.textContent = ddsState.phaseIncrement;
+  ddsOutputs.accBits.textContent = `${ddsState.accBits} bits`;
+  ddsOutputs.droppedBits.textContent = `${ddsState.droppedBits} bits`;
+  ddsOutputs.romWordBits.textContent = `${ddsState.romWordBits} bits`;
+  ddsOutputs.metricFrequency.textContent = formatFrequency(ddsState.outputFrequency);
+  ddsOutputs.metricTime.textContent = formatTime(row.n * ddsState.clockPeriod);
+  ddsOutputs.metricAddress.textContent = unsignedHex(row.address, ddsState.addressBits);
+  ddsOutputs.metricOutput.textContent = `${row.output}`;
+  ddsOutputs.runStatus.textContent = "Model updated";
+  ddsOutputs.stageTitle.textContent =
+    ddsView === "diagram" ? "DDS datapath" : ddsView === "time" ? "DDS output vs time" : "DDS spectrum";
+  ddsOutputs.stageSubtitle.textContent =
+    ddsView === "diagram"
+      ? "The current clock cycle shows the tuning word, accumulator phase, quantized address, ROM lookup, and output sample."
+      : ddsView === "time"
+        ? "The cosine ROM output is plotted over time; the highlighted sample follows the simulation clock."
+        : "The FFT magnitude reveals the fundamental tone and quantization or phase-truncation spurs.";
+  ddsViewTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.ddsView === ddsView));
+  if (activeLab === "dds") {
+    if (ddsView === "diagram") drawDdsDiagram();
+    else if (ddsView === "time") drawDdsTime();
+    else drawDdsSpectrum();
+  }
+  renderDdsVhdl();
+}
+
 function renderLabels() {
   outputs.iterations.textContent = state.iterations;
   outputs.wordLength.textContent = `${state.wordLength} bits`;
@@ -1465,6 +2112,15 @@ function setMode(mode) {
   simulate();
 }
 
+function applyControlDefaults(controlGroup, defaults) {
+  Object.entries(defaults).forEach(([key, value]) => {
+    const control = controlGroup[key];
+    if (!control) return;
+    if (control.type === "checkbox") control.checked = value;
+    else control.value = value;
+  });
+}
+
 function setLab(lab) {
   activeLab = lab;
   labTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.lab === lab));
@@ -1474,6 +2130,7 @@ function setLab(lab) {
   });
   if (lab === "cordic") renderAll();
   if (lab === "ofdm") renderOfdm();
+  if (lab === "dds") renderDds();
 }
 
 Object.values(controls).forEach((control) => {
@@ -1502,11 +2159,42 @@ Object.values(ofdmControls).forEach((control) => {
   control.addEventListener("input", simulateOfdm);
 });
 
+Object.values(ddsControls).forEach((control) => {
+  control.addEventListener("input", () => {
+    ddsStep = 0;
+    simulateDds();
+  });
+});
+
 ofdmViewTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
     ofdmView = tab.dataset.ofdmView;
     renderOfdm();
   });
+});
+
+ddsViewTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    ddsView = tab.dataset.ddsView;
+    renderDds();
+  });
+});
+
+resetButtons.cordic.addEventListener("click", () => {
+  applyControlDefaults(controls, defaultControls.cordic);
+  activeStep = 0;
+  simulate();
+});
+
+resetButtons.ofdm.addEventListener("click", () => {
+  applyControlDefaults(ofdmControls, defaultControls.ofdm);
+  simulateOfdm();
+});
+
+resetButtons.dds.addEventListener("click", () => {
+  applyControlDefaults(ddsControls, defaultControls.dds);
+  ddsStep = 0;
+  simulateDds();
 });
 
 function showHelp(helpKey) {
@@ -1523,11 +2211,20 @@ function showOfdmHelp(helpKey) {
   ofdmOutputs.helpText.textContent = item.text;
 }
 
+function showDdsHelp(helpKey) {
+  const item = ddsHelp[helpKey];
+  if (!item) return;
+  ddsOutputs.helpTitle.textContent = item.title;
+  ddsOutputs.helpText.textContent = item.text;
+}
+
 document.addEventListener("mouseover", (event) => {
   const node = event.target.closest("[data-help]");
   if (node) showHelp(node.dataset.help);
   const ofdmNode = event.target.closest("[data-ofdm-help]");
   if (ofdmNode) showOfdmHelp(ofdmNode.dataset.ofdmHelp);
+  const ddsNode = event.target.closest("[data-dds-help]");
+  if (ddsNode) showDdsHelp(ddsNode.dataset.ddsHelp);
 });
 
 document.addEventListener("focusin", (event) => {
@@ -1535,12 +2232,19 @@ document.addEventListener("focusin", (event) => {
   if (node) showHelp(node.dataset.help);
   const ofdmNode = event.target.closest("[data-ofdm-help]");
   if (ofdmNode) showOfdmHelp(ofdmNode.dataset.ofdmHelp);
+  const ddsNode = event.target.closest("[data-dds-help]");
+  if (ddsNode) showDdsHelp(ddsNode.dataset.ddsHelp);
 });
 
 outputs.playPause.addEventListener("click", () => {
   playing = !playing;
   if (playing) ensureAudioContext();
   outputs.playPause.textContent = playing ? "Ⅱ" : "▶";
+});
+
+ddsOutputs.playPause.addEventListener("click", () => {
+  ddsPlaying = !ddsPlaying;
+  ddsOutputs.playPause.textContent = ddsPlaying ? "Ⅱ" : "▶";
 });
 
 function tick(now) {
@@ -1550,16 +2254,26 @@ function tick(now) {
     playIterationTick();
     renderAll();
   }
+  if (ddsPlaying && now - ddsLastFrame > 520) {
+    ddsStep = ddsStep >= ddsState.sampleCount - 1 ? 0 : ddsStep + 1;
+    ddsLastFrame = now;
+    playIterationTick();
+    if (activeLab === "dds") renderDds();
+  }
   requestAnimationFrame(tick);
 }
 
 ofdmCanvas.addEventListener("mousemove", () => showOfdmHelp("graph"));
 ofdmCanvas.addEventListener("focus", () => showOfdmHelp("graph"));
+ddsCanvas.addEventListener("mousemove", () => showDdsHelp("graph"));
+ddsCanvas.addEventListener("focus", () => showDdsHelp("graph"));
 
 window.addEventListener("resize", () => {
   if (activeLab === "cordic") renderAll();
-  else renderOfdm();
+  else if (activeLab === "ofdm") renderOfdm();
+  else renderDds();
 });
 simulate();
 simulateOfdm();
+simulateDds();
 requestAnimationFrame(tick);

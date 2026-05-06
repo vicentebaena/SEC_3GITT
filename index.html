@@ -17,6 +17,7 @@
           <nav class="mode-tabs lab-tabs" aria-label="Lab">
             <button class="tab lab-tab active" type="button" data-lab="cordic">CORDIC</button>
             <button class="tab lab-tab" type="button" data-lab="ofdm">OFDM</button>
+            <button class="tab lab-tab" type="button" data-lab="dds">DDS</button>
           </nav>
         </header>
 
@@ -88,6 +89,7 @@
                 </label>
               </div>
             </div>
+            <button id="cordicReset" class="reset-button" type="button">Reset defaults</button>
 
           </aside>
 
@@ -225,6 +227,7 @@
                 <input id="ofdmHermitian" type="checkbox" />
               </label>
             </div>
+            <button id="ofdmReset" class="reset-button" type="button">Reset defaults</button>
           </aside>
 
           <section class="visual-stage ofdm-stage" aria-label="OFDM visualization">
@@ -254,6 +257,87 @@
               <div data-ofdm-help="bitrate" tabindex="0"><span>Raw rate</span><strong id="ofdmBitrate">625.000 kb/s</strong></div>
             </div>
           </section>
+        </section>
+        </div>
+
+        <div class="lab-view" id="ddsLab" hidden>
+        <section class="hero-grid">
+          <aside class="control-panel" aria-label="DDS controls">
+            <div class="panel-title">
+              <h2>DDS parameters</h2>
+              <span id="ddsRunStatus">Model updated</span>
+            </div>
+
+            <div class="control-stack">
+              <label class="control" data-dds-help="clockFrequency">
+                <span>Clock frequency</span>
+                <input id="ddsClockFrequency" type="number" min="1" step="1" value="100" />
+                <output id="ddsClockFrequencyOut">100.000 MHz</output>
+              </label>
+
+              <label class="control" data-dds-help="phaseIncrement">
+                <span>Phase increment</span>
+                <input id="ddsPhaseIncrement" type="number" min="1" step="1" value="173" />
+                <output id="ddsPhaseIncrementOut">173</output>
+              </label>
+
+              <label class="control" data-dds-help="accBits">
+                <span>Accumulator bits</span>
+                <input id="ddsAccBits" type="range" min="8" max="15" step="1" value="12" />
+                <output id="ddsAccBitsOut">12 bits</output>
+              </label>
+
+              <label class="control" data-dds-help="droppedBits">
+                <span>Quantizer dropped bits</span>
+                <input id="ddsDroppedBits" type="range" min="2" max="10" step="1" value="4" />
+                <output id="ddsDroppedBitsOut">4 bits</output>
+              </label>
+
+              <label class="control" data-dds-help="romWordBits">
+                <span>ROM word width</span>
+                <input id="ddsRomWordBits" type="range" min="4" max="10" step="1" value="8" />
+                <output id="ddsRomWordBitsOut">8 bits</output>
+              </label>
+            </div>
+            <button id="ddsReset" class="reset-button" type="button">Reset defaults</button>
+          </aside>
+
+          <section class="visual-stage dds-stage" aria-label="DDS visualization">
+            <div class="stage-header">
+              <div>
+                <h2 id="ddsStageTitle">DDS datapath</h2>
+                <p id="ddsStageSubtitle">The phase increment feeds an accumulator; the quantized phase addresses a cosine ROM.</p>
+              </div>
+              <div class="view-tabs dds-view-tabs" aria-label="DDS graph view">
+                <button class="tab dds-view-tab active" type="button" data-dds-view="diagram" data-dds-help="diagramView">Diagram</button>
+                <button class="tab dds-view-tab" type="button" data-dds-view="time" data-dds-help="timeView">Time</button>
+                <button class="tab dds-view-tab" type="button" data-dds-view="spectrum" data-dds-help="spectrumView">Spectrum</button>
+              </div>
+              <button id="ddsPlayPause" class="icon-button" type="button" aria-label="Play DDS animation">▶</button>
+            </div>
+            <div class="stage-body">
+              <canvas id="ddsCanvas" width="900" height="620" tabindex="0" data-dds-help="graph"></canvas>
+              <article class="help-box" aria-live="polite">
+                <p class="help-kicker">Context help</p>
+                <h3 id="ddsHelpTitle">DDS</h3>
+                <p id="ddsHelpText">Hover a control, metric, or the plot to see how phase accumulation, quantization, ROM addressing, and output precision interact.</p>
+              </article>
+            </div>
+            <div class="metric-strip">
+              <div data-dds-help="frequency" tabindex="0"><span>Output freq.</span><strong id="ddsMetricFrequency">0 Hz</strong></div>
+              <div data-dds-help="sample" tabindex="0"><span>Time</span><strong id="ddsMetricTime">0 ns</strong></div>
+              <div data-dds-help="address" tabindex="0"><span>ROM address</span><strong id="ddsMetricAddress">0x00</strong></div>
+              <div data-dds-help="output" tabindex="0"><span>Output</span><strong id="ddsMetricOutput">0</strong></div>
+            </div>
+          </section>
+        </section>
+
+        <section class="code-panel">
+          <div class="section-title">
+            <h2>DDS VHDL</h2>
+            <span id="ddsVhdlCaption">Parameterized accumulator, phase truncator, and cosine ROM</span>
+          </div>
+          <pre><code id="ddsVhdlCode"></code></pre>
         </section>
         </div>
       </section>
