@@ -15,9 +15,9 @@
             <h1>Interactive labs</h1>
           </div>
           <nav class="mode-tabs lab-tabs" aria-label="Lab">
-            <button class="tab lab-tab active" type="button" data-lab="cordic">CORDIC</button>
-            <button class="tab lab-tab" type="button" data-lab="ofdm">OFDM</button>
-            <button class="tab lab-tab" type="button" data-lab="dds">DDS</button>
+            <button class="tab lab-tab active" type="button" data-lab="cordic" data-lab-help="cordic">CORDIC</button>
+            <button class="tab lab-tab" type="button" data-lab="ofdm" data-lab-help="ofdm">OFDM</button>
+            <button class="tab lab-tab" type="button" data-lab="dds" data-lab-help="dds">DDS</button>
           </nav>
         </header>
 
@@ -31,17 +31,9 @@
 
             <div class="control-stack">
               <div class="segmented-control" aria-label="CORDIC mode">
-                <button class="tab cordic-tab active" type="button" data-mode="rotation">Rotation</button>
-                <button class="tab cordic-tab" type="button" data-mode="vectoring">Vectoring</button>
+                <button class="tab cordic-tab active" type="button" data-mode="rotation" data-help="rotationMode">Rotation</button>
+                <button class="tab cordic-tab" type="button" data-mode="vectoring" data-help="vectoringMode">Vectoring</button>
               </div>
-
-              <label class="control" data-help="mode">
-                <span>CORDIC mode</span>
-                <select id="modeSelect">
-                  <option value="rotation">Rotation: rotate a vector</option>
-                  <option value="vectoring">Vectoring: measure magnitude and phase</option>
-                </select>
-              </label>
 
               <label class="control toggle-control" data-help="architecture">
                 <span>Pipeline architecture</span>
@@ -100,10 +92,10 @@
                 <p id="stageSubtitle">The vector approaches the requested angle using only additions, subtractions, and shifts.</p>
               </div>
               <div class="view-tabs cordic-view-tabs" aria-label="CORDIC graph view">
-                <button class="tab cordic-view-tab active" type="button" data-cordic-view="vector">Vector</button>
-                <button class="tab cordic-view-tab" type="button" data-cordic-view="angle">Angle steps</button>
+                <button class="tab cordic-view-tab active" type="button" data-cordic-view="vector" data-help="cordicVectorView">Vector</button>
+                <button class="tab cordic-view-tab" type="button" data-cordic-view="angle" data-help="cordicAngleView">Angle steps</button>
               </div>
-              <button id="playPause" class="icon-button" type="button" aria-label="Play animation">▶</button>
+              <button id="playPause" class="icon-button" type="button" aria-label="Play animation" data-help="cordicPlay">▶</button>
             </div>
             <div class="stage-body">
               <canvas id="cordicCanvas" width="900" height="620" tabindex="0" data-help="cordicGraph"></canvas>
@@ -313,7 +305,7 @@
                 <button class="tab dds-view-tab" type="button" data-dds-view="time" data-dds-help="timeView">Time</button>
                 <button class="tab dds-view-tab" type="button" data-dds-view="spectrum" data-dds-help="spectrumView">Spectrum</button>
               </div>
-              <button id="ddsPlayPause" class="icon-button" type="button" aria-label="Play DDS animation">▶</button>
+              <button id="ddsPlayPause" class="icon-button" type="button" aria-label="Play DDS animation" data-dds-help="ddsPlay">▶</button>
             </div>
             <div class="stage-body">
               <canvas id="ddsCanvas" width="900" height="620" tabindex="0" data-dds-help="graph"></canvas>

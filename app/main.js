@@ -1,5 +1,4 @@
 const controls = {
-  modeSelect: document.querySelector("#modeSelect"),
   pipeline: document.querySelector("#cordicPipeline"),
   iterations: document.querySelector("#iterations"),
   wordLength: document.querySelector("#wordLength"),
@@ -36,7 +35,6 @@ const resetButtons = {
 
 const defaultControls = {
   cordic: {
-    modeSelect: "rotation",
     pipeline: false,
     iterations: 12,
     wordLength: 16,
@@ -140,10 +138,33 @@ const errorCtx = errorCanvas.getContext("2d");
 const ofdmCtx = ofdmCanvas.getContext("2d");
 const ddsCtx = ddsCanvas.getContext("2d");
 
+const labHelp = {
+  cordic: {
+    title: "CORDIC lab",
+    text: "Opens the CORDIC laboratory for rotation and vectoring modes, fixed-point bus inspection, iteration error, and generated VHDL.",
+  },
+  ofdm: {
+    title: "OFDM lab",
+    text: "Opens the OFDM laboratory for subcarrier spectra, time-domain symbols, constellation noise, Hermitian symmetry, and raw rate estimation.",
+  },
+  dds: {
+    title: "DDS lab",
+    text: "Opens the DDS laboratory for phase accumulation, phase truncation, cosine ROM output, time-domain waveform, coherent FFT spectrum, and generated VHDL.",
+  },
+};
+
 const help = {
   mode: {
     title: "CORDIC mode",
     text: "In rotation mode, the circuit consumes an angle z and rotates the input vector. In vectoring mode, it drives y toward zero and accumulates the vector angle in z. It is the same architecture with a different decision rule.",
+  },
+  rotationMode: {
+    title: "Rotation mode",
+    text: "Uses x, y, and a target z angle as inputs. Each iteration reduces z toward zero, so the output vector approaches the requested rotation.",
+  },
+  vectoringMode: {
+    title: "Vectoring mode",
+    text: "Uses x and y as inputs and measures the vector phase. Each iteration drives y toward zero while z accumulates the angle.",
   },
   architecture: {
     title: "CORDIC architecture",
@@ -180,6 +201,18 @@ const help = {
   cordicGraph: {
     title: "CORDIC graph",
     text: "Vector view shows the geometric microrotations. Angle steps view shows the accumulated angle after each iteration and the reference angle it is trying to reach.",
+  },
+  cordicVectorView: {
+    title: "Vector view",
+    text: "Shows the CORDIC operation geometrically: input vector, ideal result, current CORDIC vector, and the angle arc for the active iteration.",
+  },
+  cordicAngleView: {
+    title: "Angle steps view",
+    text: "Shows the accumulated angle as a staircase over iterations, with the highlighted segment following the simulation step by step.",
+  },
+  cordicPlay: {
+    title: "Run CORDIC animation",
+    text: "Starts or pauses the CORDIC iteration animation. You can also press Space when focus is not inside a form control.",
   },
   busData: {
     title: "Fixed-point data bus",
@@ -291,6 +324,10 @@ const ddsHelp = {
     title: "Spectrum view",
     text: "Computes a coherent FFT using an integer number of exact accumulator periods, so the main tone lands on a bin and quantization spurs can be inspected.",
   },
+  ddsPlay: {
+    title: "Run DDS animation",
+    text: "Starts or pauses the DDS clock animation. Each tick advances one clock cycle and updates the datapath values. You can also press Space when focus is not inside a form control.",
+  },
   sample: {
     title: "Current time",
     text: "Current clock-cycle time, computed from the sample index and clock frequency. Each tick advances by one clock period.",
@@ -322,6 +359,7 @@ let audioContext = null;
 let activeLab = "cordic";
 let ofdmState = {};
 let ddsState = {};
+let cordicMode = "rotation";
 let cordicView = "vector";
 let ofdmView = "frequency";
 let ddsView = "diagram";
@@ -691,7 +729,7 @@ function simulateDds() {
 }
 
 function simulate() {
-  const mode = controls.modeSelect.value;
+  const mode = cordicMode;
   const architecture = controls.pipeline.checked ? "pipeline" : "iterative";
   const iterations = Number(controls.iterations.value);
   const wordLength = Number(controls.wordLength.value);
@@ -1564,7 +1602,7 @@ function drawDdsSpectrum() {
 function renderTable() {
   outputs.iterationTable.innerHTML = state.rows
     .map(
-      (row) => `<tr>
+      (row) => `<tr class="${row.i === activeStep ? "active-row" : ""}">
         <td>${row.i}</td>
         <td>${row.d > 0 ? "+1" : row.d < 0 ? "-1" : "0"}</td>
         <td>${row.x.toFixed(5)}</td>
@@ -2107,7 +2145,7 @@ function radToDeg(rad) {
 }
 
 function setMode(mode) {
-  controls.modeSelect.value = mode;
+  cordicMode = mode;
   activeStep = 0;
   simulate();
 }
@@ -2182,6 +2220,7 @@ ddsViewTabs.forEach((tab) => {
 
 resetButtons.cordic.addEventListener("click", () => {
   applyControlDefaults(controls, defaultControls.cordic);
+  cordicMode = "rotation";
   activeStep = 0;
   simulate();
 });
@@ -2218,7 +2257,24 @@ function showDdsHelp(helpKey) {
   ddsOutputs.helpText.textContent = item.text;
 }
 
+function showActiveLabHelp(helpKey) {
+  const item = labHelp[helpKey];
+  if (!item) return;
+  if (activeLab === "cordic") {
+    outputs.helpTitle.textContent = item.title;
+    outputs.helpText.textContent = item.text;
+  } else if (activeLab === "ofdm") {
+    ofdmOutputs.helpTitle.textContent = item.title;
+    ofdmOutputs.helpText.textContent = item.text;
+  } else {
+    ddsOutputs.helpTitle.textContent = item.title;
+    ddsOutputs.helpText.textContent = item.text;
+  }
+}
+
 document.addEventListener("mouseover", (event) => {
+  const labNode = event.target.closest("[data-lab-help]");
+  if (labNode) showActiveLabHelp(labNode.dataset.labHelp);
   const node = event.target.closest("[data-help]");
   if (node) showHelp(node.dataset.help);
   const ofdmNode = event.target.closest("[data-ofdm-help]");
@@ -2228,6 +2284,8 @@ document.addEventListener("mouseover", (event) => {
 });
 
 document.addEventListener("focusin", (event) => {
+  const labNode = event.target.closest("[data-lab-help]");
+  if (labNode) showActiveLabHelp(labNode.dataset.labHelp);
   const node = event.target.closest("[data-help]");
   if (node) showHelp(node.dataset.help);
   const ofdmNode = event.target.closest("[data-ofdm-help]");
@@ -2236,15 +2294,29 @@ document.addEventListener("focusin", (event) => {
   if (ddsNode) showDdsHelp(ddsNode.dataset.ddsHelp);
 });
 
-outputs.playPause.addEventListener("click", () => {
+function toggleCordicPlayback() {
   playing = !playing;
   if (playing) ensureAudioContext();
   outputs.playPause.textContent = playing ? "Ⅱ" : "▶";
-});
+}
 
-ddsOutputs.playPause.addEventListener("click", () => {
+function toggleDdsPlayback() {
   ddsPlaying = !ddsPlaying;
+  if (ddsPlaying) ensureAudioContext();
   ddsOutputs.playPause.textContent = ddsPlaying ? "Ⅱ" : "▶";
+}
+
+outputs.playPause.addEventListener("click", toggleCordicPlayback);
+
+ddsOutputs.playPause.addEventListener("click", toggleDdsPlayback);
+
+document.addEventListener("keydown", (event) => {
+  if (event.code !== "Space") return;
+  const editable = event.target.closest("input, select, textarea, button");
+  if (editable) return;
+  event.preventDefault();
+  if (activeLab === "cordic") toggleCordicPlayback();
+  if (activeLab === "dds") toggleDdsPlayback();
 });
 
 function tick(now) {

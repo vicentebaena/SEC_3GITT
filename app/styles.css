@@ -601,6 +601,16 @@ th:first-child {
   text-align: left;
 }
 
+tbody tr.active-row {
+  color: #061012;
+  background: linear-gradient(90deg, rgba(255, 200, 87, 0.95), rgba(200, 245, 96, 0.82));
+}
+
+tbody tr.active-row td {
+  border-bottom-color: rgba(6, 16, 18, 0.18);
+  font-weight: 900;
+}
+
 .code-panel {
   margin-top: 18px;
   padding: 18px;
